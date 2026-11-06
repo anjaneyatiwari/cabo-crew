@@ -19,6 +19,7 @@
 //   POST   /api/plan/order               { day, ids:[...] }                    → { ok }   (reorder, or move into a day)
 //   GET    /api/chat?after=<id>                                                → { messages }
 //   POST   /api/chat                     { member_id, text }                   → { message }
+//   POST   /api/visit                    { device }                            → { ok }   (who has opened the invite link)
 // Plan and chat writes need a family token; x-member-id (optional) names who did it in the chat notes.
 
 const MAX_FAMILIES = 12;
@@ -75,6 +76,7 @@ async function route(req, env, url) {
   if (a === "plan" && id && M === "DELETE") return deletePlan(req, env, id);
   if (a === "chat" && !id && M === "GET") return listChat(env, url);
   if (a === "chat" && !id && M === "POST") return postChat(req, env);
+  if (a === "visit" && !id && M === "POST") return visit(req, env);
   return json({ error: "notfound", message: "Not found" }, 404);
 }
 
@@ -119,6 +121,8 @@ async function createFamily(req, env) {
   const id = rid(10), token = rid(24), now = Date.now();
   const stmts = [env.DB.prepare("INSERT INTO families (id, name, token, created_at, updated_at) VALUES (?, ?, ?, ?, ?)").bind(id, body.name, token, now, now)];
   body.members.forEach((m, i) => stmts.push(env.DB.prepare("INSERT INTO members (id, family_id, name, age, grp, pos) VALUES (?, ?, ?, 0, ?, ?)").bind(rid(10), id, m.name, m.grp, i)));
+  stmts.push(env.DB.prepare("INSERT INTO messages (family_id, member_id, name, fam, kind, text, created_at) VALUES (?, NULL, ?, ?, 'join', ?, ?)")
+    .bind(id, `The ${body.name} family`, body.name, `The ${body.name} family joined the trip`, now));
   await env.DB.batch(stmts);
   const [family] = await listFamilies(env, id);
   return json({ family, token });
@@ -424,4 +428,29 @@ async function postChat(req, env) {
   const id = await env.DB.prepare("INSERT INTO messages (family_id, member_id, name, fam, kind, text, created_at) VALUES (?, ?, ?, ?, 'text', ?, ?) RETURNING id")
     .bind(fam.id, mem.id, mem.name, fam.name, text, now).first("id");
   return json({ message: { id, member_id: mem.id, name: mem.name, fam: fam.name, kind: "text", text, created_at: now } });
+}
+
+/* ---------------- visits: which phones have opened the invite link ---------------- */
+function deviceKind(ua) {
+  ua = ua || "";
+  if (/iPhone/.test(ua)) return "iPhone";
+  if (/iPad/.test(ua)) return "iPad";
+  if (/Android/.test(ua)) return /Mobile/.test(ua) ? "Android phone" : "Android tablet";
+  if (/Macintosh/.test(ua)) return "Mac";
+  if (/Windows/.test(ua)) return "Windows PC";
+  return "Other device";
+}
+async function visit(req, env) {
+  const b = await req.json().catch(() => null);
+  const device = typeof b?.device === "string" && /^[a-z0-9]{8,32}$/.test(b.device) ? b.device : "";
+  if (!device) return json({ ok: false }, 400);
+  const token = req.headers.get("x-family-token") || "";
+  const fam = token ? await env.DB.prepare("SELECT id FROM families WHERE token = ?").bind(token).first("id") : null;
+  const cf = req.cf || {};
+  const place = [cf.city, cf.regionCode || cf.region, cf.country].filter(Boolean).join(", ").slice(0, 80);
+  const now = Date.now();
+  await env.DB.prepare(`INSERT INTO visits (device, family_id, first_seen, last_seen, opens, device_kind, place) VALUES (?, ?, ?, ?, 1, ?, ?)
+    ON CONFLICT(device) DO UPDATE SET last_seen = excluded.last_seen, opens = opens + 1, family_id = COALESCE(excluded.family_id, visits.family_id), place = excluded.place`)
+    .bind(device, fam, now, now, deviceKind(req.headers.get("user-agent")), place).run();
+  return json({ ok: true });
 }

@@ -1053,7 +1053,7 @@ async function submitFamily() {
     try {
       if (S.myId && S.token) await api(`families/${S.myId}`, { method: 'PUT', json: { name, members } });
       else { const d = await api('families', { method: 'POST', json: { name, members } }); S.myId = d.family.id; S.token = d.token; }
-      S.family = null; await refresh();
+      S.family = null; await refresh(); recordVisit();
     } catch (e) { err.textContent = e.message; return; }
     finally { btn.disabled = false; btn.textContent = 'Continue'; }
   } else {
@@ -1992,7 +1992,7 @@ function drawMessages(scroll = true) {
   for (const m of CHAT) {
     const dl = dayLabel(m.created_at);
     if (dl !== lastDay) { html += `<div class="dsep"><span>${dl}</span></div>`; lastDay = dl; prev = null; }
-    if (m.kind !== 'text') { html += `<div class="sys"><i data-lucide="calendar-check"></i><span>${esc(m.text)}</span></div>`; prev = null; continue; }
+    if (m.kind !== 'text') { html += `<div class="sys"><i data-lucide="${m.kind === 'join' ? 'party-popper' : 'calendar-check'}"></i><span>${esc(m.text)}</span></div>`; prev = null; continue; }
     const mine = m.member_id === S.me, cont = prev && prev.member_id === m.member_id && m.created_at - prev.created_at < 5 * 60e3;
     html += `<div class="msg${mine ? ' me' : ''}${cont ? ' cont' : ''}${m.pending ? ' pending' : ''}">${mine ? '' : cont ? '<span class="av sp"></span>' : chatAvatar(m)}<div class="col">${!mine && !cont ? `<span class="who">${esc(m.name)} <em>· ${esc(m.fam)}</em></span>` : ''}<div class="bub">${esc(m.text)}</div>${cont ? '' : `<span class="tm">${m.pending ? 'Sending…' : hhmm(m.created_at)}</span>`}</div></div>`;
     prev = m;
@@ -2043,6 +2043,11 @@ document.addEventListener('input', e => { if (e.target.id === 'chatIn') { e.targ
 document.addEventListener('focusin', e => { if (e.target.id === 'chatIn') $('#s-app').classList.add('typing'); });
 document.addEventListener('focusout', e => { if (e.target.id === 'chatIn') setTimeout(() => $('#s-app').classList.remove('typing'), 120); });
 
+function recordVisit() {
+  let dev = '';
+  try { dev = localStorage.getItem('cabocrew.dev') || ''; if (!dev) { dev = Array.from(crypto.getRandomValues(new Uint8Array(12)), b => 'abcdefghjkmnpqrstuvwxyz23456789'[b % 31]).join(''); localStorage.setItem('cabocrew.dev', dev); } } catch (e) { return; }
+  fetch('/api/visit', { method: 'POST', headers: Object.assign({ 'content-type': 'application/json' }, hdrs()), body: JSON.stringify({ device: dev }) }).catch(() => {});
+}
 /* ---------- Boot ---------- */
 reg($('#heroCanvas'), (x, W, H, t) => drawDusk(x, W, H, t, { hz: .5, sunX: .28 }));
 wireThumb();
@@ -2055,7 +2060,7 @@ icons();
   if (API.mode !== 'server') await loadPlan();
   if (API.mode === 'server') {
     try { await refresh(); } catch (e) { console.warn(e); }
-    await loadPlan(); pollChat(); scheduleChat();
+    await loadPlan(); pollChat(); scheduleChat(); recordVisit();
     setInterval(async () => {
       if (document.hidden || S.screen !== 'app') return;
       try { if (await refresh()) { renderAll(); } } catch (e) {}
