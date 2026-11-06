@@ -88,7 +88,7 @@ i[data-lucide],svg.lucide{width:20px;height:20px;flex:none}
 .sub{color:var(--ink-2);margin:-6px 0 4px;max-width:44ch}
 .lead{font-size:17px;line-height:1.55;margin:0;max-width:40ch}
 .accent{color:var(--accent)}
-.dock{position:absolute;left:0;right:0;bottom:0;padding:16px 20px calc(18px + env(safe-area-inset-bottom));background:linear-gradient(to bottom,color-mix(in srgb,var(--paper) 0%,transparent),var(--paper) 34%);z-index:6}
+.dock{position:sticky;left:0;right:0;bottom:0;padding:16px 20px calc(18px + env(safe-area-inset-bottom));background:linear-gradient(to bottom,color-mix(in srgb,var(--paper) 0%,transparent),var(--paper) 34%);z-index:6}
 .err{color:#D93A22;font-size:14px;margin:0;min-height:20px}
 
 .fam-field{display:flex;align-items:baseline;gap:10px;background:var(--card);border-radius:22px;padding:18px 20px;box-shadow:var(--shadow);font-family:var(--display);font-size:30px;font-weight:700;letter-spacing:-.03em;font-stretch:90%}
@@ -364,6 +364,18 @@ i[data-lucide],svg.lucide{width:20px;height:20px;flex:none}
 .fig .ai-badge{position:absolute;top:8px;left:8px;font-family:var(--mono);font-size:10px;letter-spacing:.06em;background:rgba(14,19,23,.75);color:#fff;padding:3px 7px;border-radius:999px}
 .btn[disabled]{opacity:.6}
 [hidden]{display:none!important}
+.screen>.wrap{padding-bottom:20px}
+.mrow{grid-template-columns:34px 1fr 38px;row-gap:8px}
+.mrow .grp{grid-column:2 / 4;display:grid;grid-template-columns:repeat(3,1fr);gap:6px;padding-right:6px}
+.mrow .grp button{width:auto;height:38px;border-radius:12px;background:var(--paper);border:1px solid var(--line);font-size:14px;font-weight:600;color:var(--ink-2);transition:background .2s,color .2s,border-color .2s}
+.mrow .grp button.on{background:var(--ink);color:var(--paper);border-color:var(--ink)}
+.shoot2{display:grid;grid-template-columns:1fr 40px;gap:6px;width:100%}
+.shoot2 label{cursor:pointer;-webkit-user-select:none;user-select:none;white-space:nowrap;gap:6px;padding:0 10px;font-size:14px}
+.shoot2 label svg{width:17px;height:17px}
+.shoot2 .pick{padding:0;width:40px}
+.sheet .shoot2{grid-template-columns:1fr 56px}
+.sheet .shoot2 label{font-size:16px}
+.sheet .shoot2 .pick{width:56px}
 .video img{color:transparent}
 .bname{flex-wrap:wrap;gap:2px 8px}
 .bname strong{white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100%}
@@ -403,7 +415,7 @@ i[data-lucide],svg.lucide{width:20px;height:20px;flex:none}
       <p class="sub">This is how the other four families will see you.</p>
       <label class="fam-field" for="famName"><span>The</span><input id="famName" placeholder="Rao" autocomplete="family-name" maxlength="22" aria-label="Family name"><span>family</span></label>
       <h3 class="h3">Who's coming?</h3>
-      <p class="sub">Ages decide which spots each person can use, like the water park slides or the 18+ pool parties.</p>
+      <p class="sub">Tap adult, teen or kid for each person. It decides who can use spots like the water park slides or the 18+ pool parties.</p>
       <div class="mrows" id="mrows"></div>
       <button class="btn btn-ghost" id="addMember"><i data-lucide="plus"></i> Add someone</button>
       <p class="err" id="famErr" role="alert"></p>
@@ -448,7 +460,6 @@ i[data-lucide],svg.lucide{width:20px;height:20px;flex:none}
       <p class="sub">One selfie per person: face the camera, good light, shoulders up. Each photo becomes a collectible figurine.</p>
       <div class="booth" id="booth"></div>
       <p class="note" id="boothNote"><i data-lucide="info"></i><span></span></p>
-      <input type="file" id="fileIn" accept="image/*" capture="user" hidden>
     </div>
     <div class="dock"><button class="btn btn-primary" id="boothNext">Enter Cabo Crew <i data-lucide="arrow-right"></i></button></div>
   </section>
@@ -496,6 +507,8 @@ i[data-lucide],svg.lucide{width:20px;height:20px;flex:none}
   <div class="scrim" id="scrim"></div>
   <div class="sheet" id="sheet" role="dialog" aria-modal="true"></div>
   <div class="toast" id="toast" role="status"></div>
+  <input type="file" id="camIn" accept="image/*" capture="user" hidden>
+  <input type="file" id="picIn" accept="image/*" hidden>
 </div>
 
 <script src="https://cdn.jsdelivr.net/npm/lucide@0.469.0/dist/umd/lucide.min.js"></script>
@@ -510,7 +523,9 @@ const VIDEO_ID = 'ffv0dH8r5uY';
 const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const clamp01 = v => v < 0 ? 0 : v > 1 ? 1 : v;
 const icons = () => { try { window.lucide && lucide.createIcons({ attrs: { 'stroke-width': 1.8 } }); } catch (e) {} };
-const ageTag = a => a >= 18 ? 'Adult' : a >= 13 ? 'Teen' : 'Kid';
+const GRP = { adult: 'Adult', teen: 'Teen', kid: 'Kid' };
+const grpOf = m => GRP[m.grp] ? m.grp : (m.age >= 18 ? 'adult' : m.age >= 13 ? 'teen' : m.age >= 0 ? 'kid' : 'adult');
+const grpLabel = m => GRP[grpOf(m)];
 const sleep = ms => new Promise(r => setTimeout(r, ms));
 
 /* ---------- State ---------- */
@@ -578,7 +593,7 @@ const isReal = m => API.mode === 'server' && !(S.family && S.family.example) ? m
 function figSrc(m, idx) {
   if (API.mode === 'server' && m.fig_v > 0) return `/api/fig/${encodeURIComponent(m.id)}?v=${m.fig_v}&code=${encodeURIComponent(API.code)}`;
   if (m.fig) return m.fig;
-  const key = `${m.name}|${m.age}|${idx}`;
+  const key = `${m.name}|${grpOf(m)}|${idx}`;
   if (!MYST.has(key)) MYST.set(key, renderFig(null, m, idx).toDataURL('image/jpeg', .88));
   return MYST.get(key);
 }
@@ -654,9 +669,9 @@ const RULE_LABEL = { kids: 'Kids', slides: '1.20 m+', adult: '18+', sfdinner: 'N
 function access(r, m) {
   if (!r) return { s: 'ok', l: 'Yes' };
   if (r === 'sfdinner') return { s: 'no', l: 'Dinner is at Palace' };
-  if (r === 'adult') return m.age >= 18 ? { s: 'ok', l: 'Yes' } : { s: 'no', l: '18+ only' };
-  if (r === 'kids') return m.age <= 12 ? { s: 'ok', l: 'Yes' } : { s: 'no', l: 'For kids' };
-  if (r === 'slides') return m.age >= 12 ? { s: 'ok', l: 'Yes' } : { s: 'warn', l: 'Check height' };
+  if (r === 'adult') return grpOf(m) === 'adult' ? { s: 'ok', l: 'Yes' } : { s: 'no', l: '18+ only' };
+  if (r === 'kids') return grpOf(m) === 'kid' ? { s: 'ok', l: 'Yes' } : { s: 'no', l: 'For kids' };
+  if (r === 'slides') return grpOf(m) !== 'kid' ? { s: 'ok', l: 'Yes' } : { s: 'warn', l: 'Check height' };
   return { s: 'ok', l: 'Yes' };
 }
 const KNOW = `
@@ -835,7 +850,7 @@ function renderFig(head, m, idx, aiImg) {
   x.fillText(nm, wx + 30, 866);
   x.font = `500 20px ${MONO}`; x.fillStyle = '#6A747C'; x.fillText('CABO SAN LUCAS · DEC 24–28', wx + 30, 898);
   x.fillStyle = shade(col, -.2); rr(x, wx + ww - 150, 828, 120, 60, 30); x.fill();
-  x.fillStyle = '#fff'; x.font = `600 22px ${MONO}`; x.textAlign = 'center'; x.fillText(ageTag(m.age).toUpperCase(), wx + ww - 90, 866); x.textAlign = 'left';
+  x.fillStyle = '#fff'; x.font = `600 22px ${MONO}`; x.textAlign = 'center'; x.fillText(grpLabel(m).toUpperCase(), wx + ww - 90, 866); x.textAlign = 'left';
   return c;
 }
 const canvasBlob = (c, q = .9) => new Promise(r => c.toBlob(r, 'image/jpeg', q));
@@ -883,7 +898,7 @@ const uid = () => 'n' + Math.random().toString(36).slice(2, 9);
 function renderFamilyForm() {
   const f = S.family && !S.family.example ? S.family : null;
   $('#famName').value = f ? f.name : '';
-  draft = f ? f.members.map(m => ({ id: m.id, name: m.name, age: String(m.age) })) : [{ id: uid(), name: '', age: '' }, { id: uid(), name: '', age: '' }];
+  draft = f ? f.members.map(m => ({ id: m.id, name: m.name, grp: grpOf(m) })) : [{ id: uid(), name: '', grp: 'adult' }, { id: uid(), name: '', grp: 'adult' }];
   drawRows(); $('#famErr').textContent = '';
 }
 function drawRows() {
@@ -891,8 +906,8 @@ function drawRows() {
     <div class="mrow" data-i="${i}">
       <span class="num">${String(i + 1).padStart(2, '0')}</span>
       <input id="mn-${m.id}" data-k="name" value="${esc(m.name)}" placeholder="First name" autocomplete="off" maxlength="18" aria-label="Name of person ${i + 1}">
-      <input id="ma-${m.id}" data-k="age" value="${esc(m.age)}" placeholder="Age" inputmode="numeric" maxlength="2" aria-label="Age of person ${i + 1}">
       <button data-rm="${i}" aria-label="Remove person ${i + 1}"><i data-lucide="x"></i></button>
+      <div class="grp" role="radiogroup" aria-label="Adult, teen or kid for person ${i + 1}">${Object.keys(GRP).map(g => `<button type="button" class="${m.grp === g ? 'on' : ''}" data-grp="${g}" data-i="${i}" role="radio" aria-checked="${m.grp === g}">${GRP[g]}</button>`).join('')}</div>
     </div>`).join('');
   icons();
 }
@@ -901,14 +916,9 @@ async function submitFamily() {
   const name0 = cleanName($('#famName').value), err = $('#famErr'), btn = $('#famNext');
   if (!name0) { err.textContent = 'Add your family name to continue.'; $('#famName').focus(); return; }
   const name = name0.charAt(0).toUpperCase() + name0.slice(1);
-  const rows = draft.filter(m => String(m.name).trim() || String(m.age).trim());
+  const rows = draft.filter(m => String(m.name).trim());
   if (!rows.length) { err.textContent = 'Add at least one person.'; return; }
-  for (const m of rows) {
-    if (!String(m.name).trim()) { err.textContent = 'Every person needs a first name.'; return; }
-    const a = parseInt(m.age, 10);
-    if (isNaN(a) || a < 0 || a > 99) { err.textContent = `Add an age for ${String(m.name).trim()} (0–99).`; return; }
-  }
-  const members = rows.map(m => ({ id: m.id, name: String(m.name).trim(), age: parseInt(m.age, 10) }));
+  const members = rows.map(m => ({ id: m.id, name: String(m.name).trim(), grp: m.grp || 'adult' }));
   if (API.mode === 'server') {
     btn.disabled = true; btn.textContent = 'Saving…';
     try {
@@ -919,7 +929,7 @@ async function submitFamily() {
     finally { btn.disabled = false; btn.textContent = 'Continue'; }
   } else {
     const old = S.family && !S.family.example ? S.family.members : [];
-    S.family = { name, members: members.map(m => { const p = old.find(o => o.id === m.id); return Object.assign({}, m, { fig: p && p.name === m.name && p.age === m.age ? p.fig : null }); }) };
+    S.family = { name, members: members.map(m => { const p = old.find(o => o.id === m.id); return Object.assign({}, m, { fig: p && p.name === m.name ? p.fig : null }); }) };
   }
   save(); go('welcome');
 }
@@ -953,14 +963,17 @@ function wireThumb() {
 /* ---------- Booth ---------- */
 let shootId = null;
 const JUST = new Set();
+function shootBtns(m, real, big) {
+  return `<div class="shoot2"><label class="btn ${real ? 'btn-ghost' : 'btn-primary'}${big ? '' : ' btn-sm'}" for="camIn" data-shoot="${m.id}" role="button" tabindex="0"><i data-lucide="camera"></i>${real ? 'Retake' : 'Take photo'}</label><label class="btn btn-ghost${big ? '' : ' btn-sm'} pick" for="picIn" data-shoot="${m.id}" role="button" tabindex="0" aria-label="Choose a photo of ${esc(m.name)} from the gallery"><i data-lucide="image"></i></label></div>`;
+}
 function renderBooth() {
   const f = S.family; if (!f) return;
   $('#booth').innerHTML = f.members.map((m, i) => {
     const real = isReal(m);
     return `<div class="bcard" id="bc-${m.id}">
       <div class="fig${JUST.has(m.id) ? ' reveal' : ''}">${real ? `<img src="${figSrc(m, i)}" alt="${esc(m.name)} as a figurine">${m.fig_kind === 'ai' ? '<span class="ai-badge">AI</span>' : ''}` : `<div class="empty"><i data-lucide="scan-face"></i><span>No photo yet</span></div>`}</div>
-      <div class="bname"><strong>${esc(m.name)}</strong><small>${ageTag(m.age)} · ${m.age}</small></div>
-      <button class="btn ${real ? 'btn-ghost' : 'btn-primary'} btn-sm" style="width:100%" data-shoot="${m.id}"><i data-lucide="camera"></i>${real ? 'Retake' : 'Take photo'}</button>
+      <div class="bname"><strong>${esc(m.name)}</strong><small>${grpLabel(m)}</small></div>
+      ${shootBtns(m, real)}
     </div>`;
   }).join('');
   JUST.clear();
@@ -1030,7 +1043,7 @@ function timelineHTML(day) {
       </div>
     </div>`).join('')}</div>`;
 }
-function miniFig(m, i) { return `<button class="mini" data-fig="${m.id}"><div class="fig"><img src="${figSrc(m, i)}" alt="${esc(m.name)}" loading="lazy"></div><strong>${esc(m.name)}</strong><small>${ageTag(m.age)}</small></button>`; }
+function miniFig(m, i) { return `<button class="mini" data-fig="${m.id}"><div class="fig"><img src="${figSrc(m, i)}" alt="${esc(m.name)}" loading="lazy"></div><strong>${esc(m.name)}</strong><small>${grpLabel(m)}</small></button>`; }
 function renderToday() {
   const f = S.family, st = tripState(), el = $('#p-today');
   const done = f.members.filter(isReal).length, n = f.members.length;
@@ -1114,7 +1127,7 @@ function renderCrew() {
   const f = S.family, oth = others(), slots = Math.max(0, 4 - oth.length);
   $('#p-crew').innerHTML = `
     <div class="sec-h" style="margin-top:2px"><h3>The ${esc(f.name)} family</h3><button data-act="${f.example ? 'setup' : 'edit'}"><i data-lucide="pencil"></i> ${f.example ? 'Set up yours' : 'Edit'}</button></div>
-    <div class="crew-grid">${f.members.map((m, i) => `<button data-fig="${m.id}"><div class="fig"><img src="${figSrc(m, i)}" alt="${esc(m.name)} as a figurine" loading="lazy">${m.fig_kind === 'ai' ? '<span class="ai-badge">AI</span>' : ''}</div><strong>${esc(m.name)}</strong><small>${ageTag(m.age)} · ${m.age}</small></button>`).join('')}</div>
+    <div class="crew-grid">${f.members.map((m, i) => `<button data-fig="${m.id}"><div class="fig"><img src="${figSrc(m, i)}" alt="${esc(m.name)} as a figurine" loading="lazy">${m.fig_kind === 'ai' ? '<span class="ai-badge">AI</span>' : ''}</div><strong>${esc(m.name)}</strong><small>${grpLabel(m)}</small></button>`).join('')}</div>
     <div class="sec-h"><h3>The other families</h3>${API.mode === 'server' && !f.example ? `<span class="mono" style="color:var(--ink-2)">${oth.length} of 4 joined</span>` : ''}</div>
     ${oth.map(o => `<div class="card ofam"><div class="ofam-h"><strong>The ${esc(o.name)} family</strong><small>${o.members.length} ${o.members.length === 1 ? 'person' : 'people'}</small></div><div class="strip">${o.members.map(miniFig).join('')}</div></div>`).join('')}
     ${slots ? `<div class="card"><div class="list">${Array.from({ length: slots }, (_, k) => `<div class="slot"><span class="ph">${String(oth.length + k + 2).padStart(2, '0')}</span><div><strong>Family ${oth.length + k + 2}</strong><span>Hasn't joined yet</span></div></div>`).join('')}</div></div>` : ''}
@@ -1129,8 +1142,8 @@ function closeSheet() { $('#scrim').classList.remove('on'); $('#sheet').classLis
 function openFig(id) {
   const p = findPerson(id); if (!p) return;
   const m = p.m, real = isReal(m);
-  openSheet(`<div class="big-fig"><img src="${figSrc(m, p.i)}" alt="${esc(m.name)} as a figurine"></div><h3>${esc(m.name)}</h3><p>The ${esc(p.fam.name)} family · ${ageTag(m.age)} · ${m.age}${real ? '' : ' · No photo yet'}</p>
-    ${p.mine ? `<div class="row2"><button class="btn btn-ghost" data-act="close">Close</button><button class="btn btn-primary" data-shoot="${m.id}"><i data-lucide="camera"></i>${real ? 'Retake' : 'Take photo'}</button></div>` : `<button class="btn btn-ghost" data-act="close">Close</button>`}`);
+  openSheet(`<div class="big-fig"><img src="${figSrc(m, p.i)}" alt="${esc(m.name)} as a figurine"></div><h3>${esc(m.name)}</h3><p>The ${esc(p.fam.name)} family · ${grpLabel(m)}${real ? '' : ' · No photo yet'}</p>
+    ${p.mine ? `<div class="row2"><button class="btn btn-ghost" data-act="close">Close</button><div>${shootBtns(m, real, true)}</div></div>` : `<button class="btn btn-ghost" data-act="close">Close</button>`}`);
 }
 let tt;
 function toast(msg) { const t = $('#toast'); t.textContent = msg; t.classList.add('on'); clearTimeout(tt); tt = setTimeout(() => t.classList.remove('on'), 2600); }
@@ -1151,8 +1164,8 @@ document.addEventListener('click', async e => {
   if (d.tab) return setTab(d.tab);
   if (d.tabGo) return setTab(d.tabGo);
   if (d.pin) return selectPin(d.pin);
-  if (d.rm != null) { draft.splice(+d.rm, 1); if (!draft.length) draft.push({ id: uid(), name: '', age: '' }); return drawRows(); }
-  if (d.shoot) { shootId = d.shoot; closeSheet(); const fi = $('#fileIn'); fi.value = ''; fi.click(); return; }
+  if (d.rm != null) { draft.splice(+d.rm, 1); if (!draft.length) draft.push({ id: uid(), name: '', grp: 'adult' }); return drawRows(); }
+  if (d.grp) { draft[+d.i].grp = d.grp; return drawRows(); }
   if (d.fig) return openFig(d.fig);
   if (d.check) { S.checks[d.check] = !S.checks[d.check]; save(); b.classList.toggle('done', S.checks[d.check]); b.setAttribute('aria-pressed', S.checks[d.check]); return; }
   if (d.day != null) { S.planDay = +d.day; save(); renderPlan(); icons(); return; }
@@ -1186,13 +1199,12 @@ $('#scrim').addEventListener('click', closeSheet);
 $('#startBtn').addEventListener('click', () => { if (S.family && S.family.example) S.family = null; go('family'); });
 $('#demoBtn').addEventListener('click', async () => {
   S.family = { name: 'Rao', example: true, members: [
-    { id: uid(), name: 'Priya', age: 41 }, { id: uid(), name: 'Arjun', age: 43 }, { id: uid(), name: 'Meera', age: 14 }, { id: uid(), name: 'Kabir', age: 9 } ] };
+    { id: uid(), name: 'Priya', grp: 'adult' }, { id: uid(), name: 'Arjun', grp: 'adult' }, { id: uid(), name: 'Meera', grp: 'teen' }, { id: uid(), name: 'Kabir', grp: 'kid' } ] };
   S.watched = false; save(); await fonts(); go('welcome');
 });
-$('#addMember').addEventListener('click', () => { if (draft.length >= 8) { $('#famErr').textContent = 'Up to 8 people per family.'; return; } draft.push({ id: uid(), name: '', age: '' }); drawRows(); const r = $$('.mrow input[data-k="name"]'); r[r.length - 1].focus(); });
+$('#addMember').addEventListener('click', () => { if (draft.length >= 8) { $('#famErr').textContent = 'Up to 8 people per family.'; return; } draft.push({ id: uid(), name: '', grp: 'adult' }); drawRows(); const r = $$('.mrow input[data-k="name"]'); r[r.length - 1].focus(); });
 $('#mrows').addEventListener('input', e => {
   const row = e.target.closest('.mrow'); if (!row) return; const i = +row.dataset.i, k = e.target.dataset.k;
-  if (k === 'age') e.target.value = e.target.value.replace(/\D/g, '');
   draft[i][k] = e.target.value; $('#famErr').textContent = '';
 });
 $('#famName').addEventListener('input', () => $('#famErr').textContent = '');
@@ -1200,7 +1212,14 @@ $('#famNext').addEventListener('click', submitFamily);
 $('#welNext').addEventListener('click', () => go('booth'));
 $('#boothNext').addEventListener('click', () => go('app'));
 $('#avsBtn').addEventListener('click', () => setTab('crew'));
-$('#fileIn').addEventListener('change', e => shoot(e.target.files && e.target.files[0]));
+['#camIn', '#picIn'].forEach(sel => $(sel).addEventListener('change', e => { const f = e.target.files && e.target.files[0]; if (f) shoot(f); }));
+// Photo buttons are <label for=...> so the phone opens the camera or gallery natively; this only records whose photo it is.
+document.addEventListener('click', e => {
+  const l = e.target.closest('label[data-shoot]'); if (!l) return;
+  shootId = l.dataset.shoot; const inp = document.getElementById(l.htmlFor); if (inp) inp.value = '';
+  if ($('#sheet').classList.contains('on')) setTimeout(closeSheet, 300);
+}, true);
+document.addEventListener('keydown', e => { const l = e.target.closest && e.target.closest('label[data-shoot]'); if (l && (e.key === 'Enter' || e.key === ' ')) { e.preventDefault(); l.click(); } });
 document.addEventListener('keydown', e => { if (e.key === 'Escape') { closeSheet(); if ($('#model').classList.contains('full')) toggleFull(); } });
 
 /* ---------- 3D miniature model of the RIU complex (Three.js) ---------- */

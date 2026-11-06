@@ -4,9 +4,10 @@
 // Editing a family needs that family's token (header x-family-token), which only the phone that created it holds.
 //
 //   GET    /api/ping                     → { ok, ai }
-//   GET    /api/families                 → { families: [{ id, name, created_at, members: [{ id, name, age, pos, fig_v, fig_kind }] }] }
-//   POST   /api/families                 { name, members:[{name, age}] }      → { family, token }
-//   PUT    /api/families/:id             { name, members:[{id?, name, age}] } → { family }
+//   GET    /api/families                 → { families: [{ id, name, created_at, members: [{ id, name, grp, pos, fig_v, fig_kind }] }] }
+//   POST   /api/families                 { name, members:[{name, grp}] }      → { family, token }
+//   PUT    /api/families/:id             { name, members:[{id?, name, grp}] } → { family }
+//   grp is adult | teen | kid (no ages are stored)
 //   DELETE /api/families/:id                                                    → { ok }
 //   PUT    /api/members/:id/fig          (JPEG body, x-fig-kind: ai|phone)     → { fig_v }
 //   POST   /api/members/:id/ai           (JPEG selfie)                         → the AI figurine image itself
@@ -19,6 +20,7 @@ const PHOTO_MAX = 700 * 1024;    // selfie sent for the AI figurine
 const AI_DAILY_CAP = 60;         // AI figurines per day across the whole trip: a hard ceiling on cost
 const IMAGE_MODELS = ["gemini-3.1-flash-image", "gemini-3.1-flash-image-preview", "gemini-2.5-flash-image"];
 const badModels = new Set();
+const GROUPS = ["adult", "teen", "kid"];
 
 const json = (data, status = 200) =>
   new Response(JSON.stringify(data), { status, headers: { "content-type": "application/json; charset=utf-8", "cache-control": "no-store" } });
@@ -63,7 +65,7 @@ async function listFamilies(env, onlyId) {
   const fams = onlyId
     ? (await env.DB.prepare("SELECT id, name, created_at FROM families WHERE id = ?").bind(onlyId).all()).results
     : (await env.DB.prepare("SELECT id, name, created_at FROM families ORDER BY created_at").all()).results;
-  const mems = (await env.DB.prepare("SELECT id, family_id, name, age, pos, fig_v, fig_kind FROM members ORDER BY pos").all()).results;
+  const mems = (await env.DB.prepare("SELECT id, family_id, name, grp, pos, fig_v, fig_kind FROM members ORDER BY pos").all()).results;
   return fams.map((f) => ({ ...f, members: mems.filter((m) => m.family_id === f.id).map(({ family_id, ...m }) => m) }));
 }
 
@@ -77,10 +79,9 @@ async function readBody(req) {
   if (list.length > MAX_MEMBERS) return { error: `Up to ${MAX_MEMBERS} people per family.` };
   const members = [];
   for (const m of list) {
-    const n = clean(m?.name, 18), age = parseInt(m?.age, 10);
+    const n = clean(m?.name, 18), grp = GROUPS.includes(m?.grp) ? m.grp : "adult";
     if (!n) return { error: "Every person needs a first name." };
-    if (!(age >= 0 && age <= 99)) return { error: `Add an age for ${n} (0–99).` };
-    members.push({ id: typeof m.id === "string" ? m.id : "", name: n, age });
+    members.push({ id: typeof m.id === "string" ? m.id : "", name: n, grp });
   }
   return { name, members };
 }
@@ -99,7 +100,7 @@ async function createFamily(req, env) {
   if (count >= MAX_FAMILIES) return json({ error: "full", message: "The trip is full." }, 409);
   const id = rid(10), token = rid(24), now = Date.now();
   const stmts = [env.DB.prepare("INSERT INTO families (id, name, token, created_at, updated_at) VALUES (?, ?, ?, ?, ?)").bind(id, body.name, token, now, now)];
-  body.members.forEach((m, i) => stmts.push(env.DB.prepare("INSERT INTO members (id, family_id, name, age, pos) VALUES (?, ?, ?, ?, ?)").bind(rid(10), id, m.name, m.age, i)));
+  body.members.forEach((m, i) => stmts.push(env.DB.prepare("INSERT INTO members (id, family_id, name, age, grp, pos) VALUES (?, ?, ?, 0, ?, ?)").bind(rid(10), id, m.name, m.grp, i)));
   await env.DB.batch(stmts);
   const [family] = await listFamilies(env, id);
   return json({ family, token });
@@ -116,9 +117,9 @@ async function updateFamily(req, env, id) {
   body.members.forEach((m, i) => {
     if (existing.has(m.id)) {
       keep.add(m.id);
-      stmts.push(env.DB.prepare("UPDATE members SET name = ?, age = ?, pos = ? WHERE id = ?").bind(m.name, m.age, i, m.id));
+      stmts.push(env.DB.prepare("UPDATE members SET name = ?, grp = ?, pos = ? WHERE id = ?").bind(m.name, m.grp, i, m.id));
     } else {
-      stmts.push(env.DB.prepare("INSERT INTO members (id, family_id, name, age, pos) VALUES (?, ?, ?, ?, ?)").bind(rid(10), id, m.name, m.age, i));
+      stmts.push(env.DB.prepare("INSERT INTO members (id, family_id, name, age, grp, pos) VALUES (?, ?, ?, 0, ?, ?)").bind(rid(10), id, m.name, m.grp, i));
     }
   });
   for (const old of existing) if (!keep.has(old)) stmts.push(env.DB.prepare("DELETE FROM members WHERE id = ?").bind(old));
@@ -139,7 +140,7 @@ async function deleteFamily(req, env, id) {
 
 /* ---------------- figurines ---------------- */
 async function memberOf(req, env, memberId) {
-  const m = await env.DB.prepare("SELECT id, family_id, name, age FROM members WHERE id = ?").bind(memberId).first();
+  const m = await env.DB.prepare("SELECT id, family_id, name, grp FROM members WHERE id = ?").bind(memberId).first();
   if (!m) return { res: json({ error: "nomember", message: "That person isn't on the trip anymore." }, 404) };
   const denied = await auth(req, env, m.family_id);
   return denied ? { res: denied } : { m };
@@ -175,7 +176,7 @@ async function aiFig(req, env, memberId) {
   const day = new Date().toISOString().slice(0, 10);
   const used = await env.DB.prepare("INSERT INTO budget (day, n) VALUES (?, 1) ON CONFLICT(day) DO UPDATE SET n = n + 1 RETURNING n").bind(day).first("n");
   if (used > AI_DAILY_CAP) return json({ error: "cap", message: "Today's AI figurines have all been made. Try again tomorrow." }, 429);
-  const r = await generateFigurine(env, photo, caboPrompt(m.age));
+  const r = await generateFigurine(env, photo, caboPrompt(m.grp));
   if (r.error) {
     console.log("figurine failed", r.error, r.message || "");
     const message = {
@@ -190,11 +191,11 @@ async function aiFig(req, env, memberId) {
 }
 
 // One look for everyone (same base, light and backdrop) so all 5 families' figurines belong to one set.
-// Outfits depend only on age, never on a guess about the person.
-function caboPrompt(age) {
-  const outfit = age < 13
+// Outfits depend only on adult/teen/kid, never on a guess about the person.
+function caboPrompt(grp) {
+  const outfit = grp === "kid"
     ? "a bright tropical-print swim shirt, colourful board shorts and small sandals, holding a little inflatable flamingo pool ring under one arm"
-    : age < 18
+    : grp === "teen"
       ? "a relaxed oversized tropical-print short-sleeve shirt, shorts and white sneakers, sunglasses pushed up on the head"
       : "a breezy linen resort outfit in white and sand tones with a bright tropical-print accent, sandals, and sunglasses pushed up on the head";
   return [
