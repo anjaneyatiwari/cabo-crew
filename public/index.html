@@ -675,6 +675,8 @@ function getCode() {
   let c = '';
   try { c = new URL(location.href).searchParams.get('code') || ''; } catch (e) {}
   try { if (c) localStorage.setItem('cabocrew.code', c); else c = localStorage.getItem('cabocrew.code') || ''; } catch (e) {}
+  // Keep the code out of the address bar so it isn't shared by accident; the invite button builds the link.
+  try { if (new URL(location.href).searchParams.get('code')) history.replaceState(null, '', location.pathname + location.hash); } catch (e) {}
   return c;
 }
 function hdrs(extra) { const h = Object.assign({ 'x-trip-code': API.code }, extra || {}); if (S.token) h['x-family-token'] = S.token; return h; }

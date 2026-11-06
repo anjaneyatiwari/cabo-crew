@@ -43,10 +43,30 @@ function fromB64(b64) { const bin = atob(b64); const out = new Uint8Array(bin.le
 // The Gemini key secret, whatever capitalisation it was saved with (GEMINI_API_KEY, Gemini_Api_key, ...).
 const geminiKey = (env) => env.GEMINI_API_KEY || Object.entries(env).find(([k, v]) => k.toUpperCase() === "GEMINI_API_KEY" && typeof v === "string")?.[1] || "";
 
+// Everything (pages and API) needs the trip code: from the invite link (?code=), the x-trip-code header,
+// or the cookie the invite link leaves behind. Without it, only a "this app is private" page is served.
+const cookieCode = (req) => (req.headers.get("cookie") || "").match(/(?:^|;\s*)cc=([^;]+)/)?.[1] || "";
+const LOCKED_HTML = `<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><meta name="robots" content="noindex, nofollow"><title>Private</title>
+<style>html,body{height:100%;margin:0}body{display:grid;place-items:center;background:#0E1317;color:#ECF0F2;font:16px/1.5 system-ui,-apple-system,"Segoe UI",sans-serif;padding:24px;text-align:center}h1{font-size:22px;margin:0 0 8px}p{color:#98A3AC;margin:0;max-width:30ch}</style></head>
+<body><div><h1>This app is private</h1><p>Open it from the invite link you were sent.</p></div>
+<script>try{var c=localStorage.getItem("cabocrew.code");if(c&&!/[?&]code=/.test(location.search))location.replace("/?code="+encodeURIComponent(c));}catch(e){}</script></body></html>`;
+const PRIVATE_HEADERS = { "x-robots-tag": "noindex, nofollow", "referrer-policy": "no-referrer", "cache-control": "no-store" };
+
 export default {
   async fetch(req, env) {
     const url = new URL(req.url);
-    if (!url.pathname.startsWith("/api/")) return env.ASSETS.fetch(req);
+    if (url.pathname === "/robots.txt") return new Response("User-agent: *\nDisallow: /\n", { headers: { "content-type": "text/plain" } });
+    if (!url.pathname.startsWith("/api/")) {
+      const code = url.searchParams.get("code") || "";
+      if (!env.TRIP_CODE || (code !== env.TRIP_CODE && cookieCode(req) !== env.TRIP_CODE)) {
+        return new Response(LOCKED_HTML, { status: 403, headers: { "content-type": "text/html; charset=utf-8", ...PRIVATE_HEADERS } });
+      }
+      const res = await env.ASSETS.fetch(req);
+      const out = new Response(res.body, res);
+      for (const [k, v] of Object.entries(PRIVATE_HEADERS)) out.headers.set(k, v);
+      if (code === env.TRIP_CODE) out.headers.append("set-cookie", `cc=${env.TRIP_CODE}; Path=/; Max-Age=15552000; HttpOnly; Secure; SameSite=Lax`);
+      return out;
+    }
     try {
       return await route(req, env, url);
     } catch (err) {
@@ -57,7 +77,7 @@ export default {
 };
 
 async function route(req, env, url) {
-  const code = req.headers.get("x-trip-code") || url.searchParams.get("code") || "";
+  const code = req.headers.get("x-trip-code") || url.searchParams.get("code") || cookieCode(req);
   if (!env.TRIP_CODE || code !== env.TRIP_CODE) return json({ error: "locked", message: "Open Cabo Crew from your invite link." }, 401);
   const [, a, id, b] = url.pathname.split("/").filter(Boolean);
   const M = req.method;

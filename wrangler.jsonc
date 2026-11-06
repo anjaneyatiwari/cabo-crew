@@ -3,7 +3,8 @@
   "name": "cabo-crew",
   "main": "src/worker.js",
   "compatibility_date": "2025-09-01",
-  "assets": { "directory": "./public", "binding": "ASSETS" },
+  // run_worker_first: every request goes through the Worker, so pages are private too, not just the data.
+  "assets": { "directory": "./public", "binding": "ASSETS", "run_worker_first": true },
   "d1_databases": [
     { "binding": "DB", "database_name": "cabo-crew", "database_id": "6b6bf202-ed20-40dd-8e2a-ad465ee5e174" }
   ],
