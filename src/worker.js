@@ -198,7 +198,8 @@ async function aiFig(req, env, memberId) {
   const day = new Date().toISOString().slice(0, 10);
   const used = await env.DB.prepare("INSERT INTO budget (day, n) VALUES (?, 1) ON CONFLICT(day) DO UPDATE SET n = n + 1 RETURNING n").bind(day).first("n");
   if (used > AI_DAILY_CAP) return json({ error: "cap", message: "Today's AI figurines have all been made. Try again tomorrow." }, 429);
-  const r = await generateFigurine(env, photo, caboPrompt(m.grp));
+  const look = ["f", "m"].includes(req.headers.get("x-look")) ? req.headers.get("x-look") : "auto";
+  const r = await generateFigurine(env, photo, caboPrompt(m.grp, look));
   if (r.error) {
     console.log("figurine failed", r.error, r.message || "");
     const message = {
@@ -213,16 +214,33 @@ async function aiFig(req, env, memberId) {
 }
 
 // One look for everyone (same base, light and backdrop) so all 5 families' figurines belong to one set.
-// Outfits depend only on adult/teen/kid, never on a guess about the person.
-function caboPrompt(grp) {
-  const outfit = grp === "kid"
-    ? "a bright tropical-print swim shirt, colourful board shorts and small sandals, holding a little inflatable flamingo pool ring under one arm"
-    : grp === "teen"
-      ? "a relaxed oversized tropical-print short-sleeve shirt, shorts and white sneakers, sunglasses pushed up on the head"
-      : "a breezy linen resort outfit in white and sand tones with a bright tropical-print accent, sandals, and sunglasses pushed up on the head";
+// look: "f" | "m" chosen in the app, or "auto" = keep the gender the person presents in the photo.
+const OUTFITS = {
+  kid: {
+    f: "a bright tropical-print swimsuit with a little ruffled cover-up skirt and small sandals, holding a small inflatable flamingo pool ring under one arm",
+    m: "a bright tropical-print swim shirt, colourful board shorts and small sandals, holding a small inflatable flamingo pool ring under one arm",
+  },
+  teen: {
+    f: "a cute tropical-print sundress or a crop-length linen top with a matching skirt, white sneakers, and sunglasses pushed up on the head",
+    m: "a relaxed oversized tropical-print short-sleeve shirt, shorts and white sneakers, sunglasses pushed up on the head",
+  },
+  adult: {
+    f: "a flowy tropical-print sundress (or an elegant linen top with a matching skirt) in white, sand and coral tones, sandals, and sunglasses pushed up on the head",
+    m: "a breezy linen button-up shirt in white with a bright tropical-print accent, sand-coloured shorts, sandals, and sunglasses pushed up on the head",
+  },
+};
+function caboPrompt(grp, look) {
+  const o = OUTFITS[grp] || OUTFITS.adult;
+  const who = grp === "kid" ? ["girl", "boy"] : grp === "teen" ? ["teenage girl", "teenage boy"] : ["woman", "man"];
+  const identity = look === "f" ? `The person is a ${who[0]}; the figurine must clearly be a ${who[0]}.`
+    : look === "m" ? `The person is a ${who[1]}; the figurine must clearly be a ${who[1]}.`
+    : "Keep the person's gender exactly as it appears in the photo: a woman or girl stays a woman or girl, a man or boy stays a man or boy. Never change their gender.";
+  const outfit = look === "f" ? o.f : look === "m" ? o.m
+    : `dress them to match how they appear in the photo. If the person is a ${who[0]}: ${o.f}. If the person is a ${who[1]}: ${o.m}`;
   return [
     "Turn the person in this photo into a photorealistic, premium collectible miniature figurine (about 1/7 scale) of this exact person on a beach holiday in Cabo San Lucas, Mexico.",
-    "Most important: keep the face a faithful, instantly recognizable likeness of the photo — same face shape, eyes, eyebrows, nose, lips, skin tone, hairline and hair, facial hair and glasses (if any). Do not change their skin tone, age, ethnicity or body type, and do not beautify or slim the face.",
+    "Most important: keep the face a faithful, instantly recognizable likeness of the photo — same face shape, eyes, eyebrows, nose, lips, skin tone, hairline, hair length and hairstyle, facial hair, glasses and jewellery (if any). Do not change their skin tone, age, ethnicity or body type, and do not beautify or slim the face.",
+    identity,
     `Outfit: ${outfit}. Modest and family-friendly.`,
     "Pose: standing relaxed and happy, facing the camera, one hand giving a small wave. The face must be clearly visible, front-on, with nothing covering it.",
     "Expression: a warm, happy vacation smile.",

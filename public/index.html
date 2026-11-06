@@ -364,6 +364,11 @@ i[data-lucide],svg.lucide{width:20px;height:20px;flex:none}
 .fig .ai-badge{position:absolute;top:8px;left:8px;font-family:var(--mono);font-size:10px;letter-spacing:.06em;background:rgba(14,19,23,.75);color:#fff;padding:3px 7px;border-radius:999px}
 .btn[disabled]{opacity:.6}
 [hidden]{display:none!important}
+.look{display:grid;grid-template-columns:repeat(3,1fr);gap:4px;background:var(--chip);border-radius:12px;padding:3px;width:100%}
+.look button{height:30px;border-radius:9px;font-size:12.5px;font-weight:600;color:var(--ink-2);transition:background .2s,color .2s}
+.look button.on{background:var(--card);color:var(--ink);box-shadow:0 1px 4px rgba(0,0,0,.08)}
+.sheet .look{margin-bottom:8px}
+.sheet .look button{height:38px;font-size:14px}
 .screen>.wrap{padding-bottom:20px}
 .mrow{grid-template-columns:34px 1fr 38px;row-gap:8px}
 .mrow .grp{grid-column:2 / 4;display:grid;grid-template-columns:repeat(3,1fr);gap:6px;padding-right:6px}
@@ -1096,6 +1101,11 @@ async function refreshAI() {
 }
 let shootId = null;
 const JUST = new Set();
+function lookChips(m) {
+  if (!(API.mode === 'server' && API.ai && !isExample())) return '';
+  const L = grpOf(m) === 'kid' ? ['Girl', 'Boy'] : ['Woman', 'Man'], cur = (S.looks || {})[m.id] || 'auto';
+  return `<div class="look" role="radiogroup" aria-label="Figurine for ${esc(m.name)}">${[['auto', 'Auto'], ['f', L[0]], ['m', L[1]]].map(([k, t]) => `<button class="${cur === k ? 'on' : ''}" data-look="${k}" data-lm="${m.id}" role="radio" aria-checked="${cur === k}">${t}</button>`).join('')}</div>`;
+}
 function shootBtns(m, real, big) {
   return `<div class="shoot2"><label class="btn ${real ? 'btn-ghost' : 'btn-primary'}${big ? '' : ' btn-sm'}" for="camIn" data-shoot="${m.id}" role="button" tabindex="0"><i data-lucide="camera"></i>${real ? 'Retake' : 'Take photo'}</label><label class="btn btn-ghost${big ? '' : ' btn-sm'} pick" for="picIn" data-shoot="${m.id}" role="button" tabindex="0" aria-label="Choose a photo of ${esc(m.name)} from the gallery"><i data-lucide="image"></i></label></div>`;
 }
@@ -1106,7 +1116,7 @@ function renderBooth() {
     return `<div class="bcard" id="bc-${m.id}">
       <div class="fig${JUST.has(m.id) ? ' reveal' : ''}">${real ? `<img src="${figSrc(m, i)}" alt="${esc(m.name)} as a figurine">${m.fig_kind === 'ai' ? '<span class="ai-badge">AI</span>' : ''}` : `<div class="empty"><i data-lucide="scan-face"></i><span>No photo yet</span></div>`}</div>
       <div class="bname"><strong>${esc(m.name)}</strong><small>${grpLabel(m)}</small></div>
-      ${shootBtns(m, real)}
+      ${lookChips(m)}${shootBtns(m, real)}
     </div>`;
   }).join('');
   JUST.clear();
@@ -1130,7 +1140,7 @@ async function shoot(file) {
       setLabel('Sculpting with AI · about 30 s');
       try {
         const body = await selfieBlob(img);
-        const r = await fetch(`/api/members/${encodeURIComponent(m.id)}/ai`, { method: 'POST', body, headers: hdrs({ 'content-type': 'image/jpeg' }) });
+        const r = await fetch(`/api/members/${encodeURIComponent(m.id)}/ai`, { method: 'POST', body, headers: hdrs({ 'content-type': 'image/jpeg', 'x-look': (S.looks || {})[m.id] || 'auto' }) });
         if (!r.ok) { const d = await r.json().catch(() => ({})); throw new Error(d.message || 'The figurine maker is busy.'); }
         const ai = await loadImg(URL.createObjectURL(await r.blob()));
         canvas = renderFig(null, m, idx, ai); kind = 'ai';
@@ -1260,7 +1270,7 @@ function openFig(id) {
   const p = findPerson(id); if (!p) return;
   const m = p.m, real = isReal(m);
   openSheet(`<div class="big-fig"><img src="${figSrc(m, p.i)}" alt="${esc(m.name)} as a figurine"></div><h3>${esc(m.name)}</h3><p>The ${esc(p.fam.name)} family · ${grpLabel(m)}${real ? '' : ' · No photo yet'}</p>
-    ${p.mine ? `<div class="row2"><button class="btn btn-ghost" data-act="close">Close</button><div>${shootBtns(m, real, true)}</div></div>` : `<button class="btn btn-ghost" data-act="close">Close</button>`}`);
+    ${p.mine ? `<div class="row2"><button class="btn btn-ghost" data-act="close">Close</button><div>${lookChips(m)}${shootBtns(m, real, true)}</div></div>` : `<button class="btn btn-ghost" data-act="close">Close</button>`}`);
 }
 let tt;
 function toast(msg) { const t = $('#toast'); t.textContent = msg; t.classList.add('on'); clearTimeout(tt); tt = setTimeout(() => t.classList.remove('on'), 2600); }
@@ -1278,6 +1288,7 @@ document.addEventListener('click', async e => {
   }
   const d = b.dataset;
   if ($('#sheet').classList.contains('on') && sheetClick(b, d)) return;
+  if (d.look) { S.looks = Object.assign({}, S.looks, { [d.lm]: d.look }); save(); b.parentNode.querySelectorAll('button').forEach(x => { x.classList.toggle('on', x === b); x.setAttribute('aria-checked', x === b); }); return; }
   if (d.item) return itemSheet(d.item);
   if (d.me) { S.me = d.me; save(); renderChat(); icons(); setTimeout(() => { const i = $('#chatIn'); if (i) i.focus(); }, 50); return; }
   if (d.quick) return sendChat(d.quick);
