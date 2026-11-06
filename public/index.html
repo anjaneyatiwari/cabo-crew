@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, interactive-widget=resizes-content">
 <meta name="theme-color" content="#14203F">
 <meta name="robots" content="noindex">
 <title>Cabo Crew</title>
@@ -379,6 +379,131 @@ i[data-lucide],svg.lucide{width:20px;height:20px;flex:none}
 .video img{color:transparent}
 .bname{flex-wrap:wrap;gap:2px 8px}
 .bname strong{white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100%}
+
+/* Tabs: five */
+.tabbar{grid-template-columns:repeat(5,1fr)}
+.tabbar .ind{width:calc((100% - 12px)/5)}
+.tab .badge{position:absolute;top:6px;left:calc(50% + 6px);min-width:18px;height:18px;padding:0 5px;border-radius:9px;background:var(--accent);color:#fff;font-size:10.5px;font-weight:700;display:grid;place-items:center;line-height:1;box-shadow:0 0 0 2px var(--card)}
+#s-app.typing .tabbar{display:none}
+
+/* Editable plan */
+.dchip{position:relative}
+.dchip .cnt{position:absolute;top:6px;right:7px;font-size:10px;font-weight:700;color:var(--ink-2);font-family:var(--mono)}
+.dchip.on .cnt{color:color-mix(in srgb,var(--paper) 70%,transparent)}
+.dchip.drop{background:var(--accent);color:#fff;transform:translateY(-4px) scale(1.06);box-shadow:0 10px 30px color-mix(in srgb,var(--accent) 40%,transparent)}
+.dchip.drop .mono,.dchip.drop .cnt{color:#fff}
+.ti .c[data-item]{cursor:pointer;transition:transform .2s var(--ease),box-shadow .2s}
+.ti .c[data-item]:active{transform:scale(.99)}
+.ti .grow{flex:1;min-width:0}
+.grip{flex:none;width:36px;height:36px;margin:-6px -8px 0 0;border-radius:12px;display:grid;place-items:center;color:var(--ink-2);touch-action:none;cursor:grab}
+.grip:hover{background:var(--chip)}
+.grip svg{width:18px;height:18px}
+.chip.more{background:transparent;border:1px solid var(--line);color:var(--ink);cursor:pointer}
+.ti.dragging{opacity:.25}
+.ti.dragging .c{box-shadow:none;outline:2px dashed var(--line)}
+.ti.ghost{position:fixed;z-index:60;pointer-events:none;margin:0;animation:none;transform:rotate(-1.2deg) scale(1.03);transition:transform .2s var(--ease)}
+.ti.ghost .c{box-shadow:0 22px 50px rgba(0,0,0,.25)}
+.ti.ghost.to-day{transform:scale(.8) rotate(-3deg);opacity:.9}
+.empty-day{display:flex;align-items:center;gap:10px;padding:18px;border:1.5px dashed var(--line);border-radius:20px;color:var(--ink-2);font-size:14px}
+
+/* Sheets: add / options */
+.sheet.tall{max-height:88%}
+.sheet h4{margin:14px 2px 6px;font-weight:500;font-size:11px;color:var(--ink-2)}
+.seg2{display:grid;grid-template-columns:1fr 1fr;background:var(--chip);border-radius:14px;padding:4px;gap:4px}
+.seg2 button{height:40px;border-radius:11px;font-weight:600;font-size:14px;color:var(--ink-2);transition:background .25s,color .25s}
+.seg2 button.on{background:var(--card);color:var(--ink);box-shadow:0 1px 4px rgba(0,0,0,.08)}
+.when{display:flex;flex-direction:column;gap:6px}
+.when .mono{color:var(--ink-2);font-size:11px}
+.when-row{display:flex;gap:6px;overflow-x:auto;scrollbar-width:none;margin:0 -20px;padding:0 20px}
+.when-row::-webkit-scrollbar{display:none}
+.wpill{flex:none;height:34px;padding:0 14px;border-radius:999px;border:1px solid var(--line);font-size:13px;font-weight:600;color:var(--ink-2);transition:all .2s}
+.wpill.on{background:var(--ink);color:var(--paper);border-color:var(--ink)}
+.opts{display:flex;flex-direction:column}
+.opt{display:flex;align-items:center;gap:12px;text-align:left;padding:10px 4px;border-top:1px solid var(--line);border-radius:0;transition:background .2s}
+.opt:active{background:var(--chip)}
+.opt .tx{flex:1;min-width:0}
+.opt .tx strong{display:block;font-weight:600;font-size:15px}
+.opt .tx span{display:block;font-size:13px;color:var(--ink-2);line-height:1.35}
+.opt .plus{width:20px;height:20px;color:var(--accent)}
+.form{display:flex;flex-direction:column;gap:8px}
+.form label{font-size:12px;font-family:var(--mono);letter-spacing:.05em;text-transform:uppercase;color:var(--ink-2);margin-top:6px}
+.form input,.form textarea{width:100%;border:1px solid var(--line);border-radius:14px;padding:12px 14px;background:var(--paper);outline:0;font:inherit;resize:none}
+.form input:focus,.form textarea:focus{border-color:var(--ink)}
+.pick3,.pick5{display:grid;gap:6px}
+.pick3{grid-template-columns:repeat(3,1fr)}
+.pick5{grid-template-columns:repeat(5,1fr)}
+.pick3 button,.pick5 button{height:42px;border-radius:12px;border:1px solid var(--line);font-weight:600;font-size:14px;color:var(--ink-2);display:flex;flex-direction:column;align-items:center;justify-content:center;line-height:1.05}
+.pick5 button{height:52px;font-family:var(--display);font-size:20px;font-weight:800}
+.pick5 .mono{font-size:9.5px;font-weight:500}
+.pick3 button.on,.pick5 button.on{background:var(--ink);color:var(--paper);border-color:var(--ink)}
+.toggle{display:flex;align-items:center;gap:10px;font-weight:600;font-size:14px;padding:8px 0;align-self:flex-start}
+.toggle .sw{width:42px;height:26px;border-radius:13px;background:var(--line);position:relative;transition:background .25s}
+.toggle .sw::after{content:"";position:absolute;top:3px;left:3px;width:20px;height:20px;border-radius:50%;background:#fff;box-shadow:0 1px 3px rgba(0,0,0,.2);transition:transform .3s var(--spring)}
+.toggle.on .sw{background:var(--ok)}
+.toggle.on .sw::after{transform:translateX(16px)}
+.row3{display:grid;grid-template-columns:56px 1fr 1fr;gap:8px;margin-top:6px}
+.btn.danger{color:#D93A22}
+
+/* Chat */
+#p-chat{padding:0;gap:0;overflow:hidden;display:flex;flex-direction:column}
+.chat-head{display:flex;justify-content:space-between;align-items:center;padding:4px 18px 10px;border-bottom:1px solid var(--line)}
+.chat-head strong{display:block;font-family:var(--display);font-size:24px;font-weight:800;letter-spacing:-.03em;line-height:1.1}
+.chat-head span{font-size:13px;color:var(--ink-2)}
+.as{display:inline-flex;align-items:center;gap:6px;padding:4px 10px 4px 4px;border-radius:999px;background:var(--card);box-shadow:var(--shadow);font-weight:600;font-size:13px}
+.as .av{width:28px;height:28px;margin:0;border:0}
+.as svg{width:15px;height:15px}
+.chat-list{flex:1;overflow-y:auto;padding:10px 14px 8px;display:flex;flex-direction:column;gap:3px;overscroll-behavior:contain}
+.dsep{display:flex;justify-content:center;margin:12px 0 6px}
+.dsep span{font-family:var(--mono);font-size:10.5px;letter-spacing:.06em;text-transform:uppercase;color:var(--ink-2);background:var(--chip);padding:4px 10px;border-radius:999px}
+.sys{align-self:center;display:flex;align-items:center;gap:6px;max-width:88%;font-size:12.5px;color:var(--ink-2);background:color-mix(in srgb,var(--accent) 9%,transparent);padding:6px 12px;border-radius:14px;margin:6px 0;text-align:center}
+.sys svg{width:14px;height:14px;color:var(--accent);flex:none}
+.msg{display:flex;gap:8px;align-items:flex-end;max-width:84%;margin-top:8px;animation:pop .35s var(--spring)}
+.msg.cont{margin-top:2px}
+.msg.me{align-self:flex-end;flex-direction:row-reverse}
+.msg .av{width:30px;height:30px;margin:0;border:0;flex:none}
+.msg .av.sp{visibility:hidden}
+.av.ini{display:grid;place-items:center;background:var(--chip);font-weight:700;font-size:13px;color:var(--ink-2)}
+.msg .col{display:flex;flex-direction:column;gap:3px;min-width:0}
+.msg.me .col{align-items:flex-end}
+.msg .who{font-size:12px;font-weight:600;margin-left:12px}
+.msg .who em{font-style:normal;color:var(--ink-2);font-weight:500}
+.bub{background:var(--card);box-shadow:var(--shadow);padding:9px 13px;border-radius:20px 20px 20px 6px;font-size:15.5px;line-height:1.4;white-space:pre-wrap;word-break:break-word}
+.msg.cont .bub{border-radius:6px 20px 20px 6px}
+.msg.me .bub{background:var(--ink);color:var(--paper);border-radius:20px 20px 6px 20px;box-shadow:none}
+.msg.me.cont .bub{border-radius:20px 6px 6px 20px}
+.msg.pending .bub{opacity:.6}
+.msg .tm{font-size:11px;color:var(--ink-2);margin:0 10px}
+.chat-empty{margin:auto;display:flex;flex-direction:column;align-items:center;gap:6px;text-align:center;color:var(--ink-2);padding:30px}
+.chat-empty svg{width:36px;height:36px;color:var(--accent)}
+.chat-empty strong{color:var(--ink);font-family:var(--display);font-size:20px}
+.chat-foot{padding:6px 12px calc(92px + env(safe-area-inset-bottom));border-top:1px solid var(--line);background:var(--paper)}
+#s-app.typing .chat-foot{padding-bottom:calc(10px + env(safe-area-inset-bottom))}
+.quick{display:flex;gap:6px;overflow-x:auto;scrollbar-width:none;padding:2px 2px 8px}
+.quick::-webkit-scrollbar{display:none}
+.quick button{flex:none;height:32px;padding:0 12px;border-radius:999px;background:var(--card);box-shadow:var(--shadow);font-size:13px;font-weight:600}
+.composer{display:flex;align-items:flex-end;gap:8px;background:var(--card);border-radius:24px;padding:6px 6px 6px 16px;box-shadow:var(--shadow)}
+.composer textarea{flex:1;border:0;outline:0;background:transparent;resize:none;font:inherit;font-size:16px;line-height:1.4;padding:7px 0;max-height:120px}
+.send{width:40px;height:40px;border-radius:50%;background:var(--accent);color:#fff;display:grid;place-items:center;flex:none;transition:transform .2s var(--spring)}
+.send:active{transform:scale(.9)}
+.send svg{width:20px;height:20px}
+.who-pick{display:flex;flex-direction:column;gap:8px;padding:6px 2px 4px}
+.who-pick>span{font-weight:600}
+.who-row{display:flex;flex-wrap:wrap;gap:8px}
+.who-row button{display:inline-flex;align-items:center;gap:8px;height:44px;padding:0 14px 0 6px;border-radius:999px;background:var(--card);box-shadow:var(--shadow);font-weight:600}
+.who-row .av{width:32px;height:32px;margin:0;border:0}
+.chat-off{margin:16px;display:flex;flex-direction:column;align-items:flex-start;gap:8px}
+.chat-off strong{font-family:var(--display);font-size:22px}
+.chat-off span{color:var(--ink-2)}
+.chat-off .tile{background:color-mix(in srgb,var(--accent) 12%,transparent);color:var(--accent)}
+#todayChat{padding:6px 16px}
+.tc{display:flex;gap:10px;align-items:center;padding:10px 0;border-top:1px solid var(--line)}
+.tc:first-child{border-top:0}
+.tc .av{width:32px;height:32px;margin:0;border:0;flex:none}
+.tc div{flex:1;min-width:0}
+.tc strong{display:block;font-size:13px;font-weight:600}
+.tc span{display:block;font-size:14px;color:var(--ink-2);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.tc em{font-style:normal;font-size:11px;color:var(--ink-2)}
+.tc-empty{color:var(--ink-2);font-size:14px;margin:8px 0}
 </style>
 </head>
 <body>
@@ -494,12 +619,14 @@ i[data-lucide],svg.lucide{width:20px;height:20px;flex:none}
         <div id="rDyn" style="display:flex;flex-direction:column;gap:14px"></div>
       </div>
       <div class="pane" id="p-crew"></div>
+      <div class="pane" id="p-chat"></div>
     </div>
     <nav class="tabbar" aria-label="Sections">
       <span class="ind" id="tabInd"></span>
       <button class="tab" data-tab="today"><i data-lucide="sun"></i>Today</button>
       <button class="tab" data-tab="plan"><i data-lucide="calendar-days"></i>Plan</button>
       <button class="tab" data-tab="resorts"><i data-lucide="map"></i>Resorts</button>
+      <button class="tab" data-tab="chat"><i data-lucide="message-circle"></i>Chat<span class="badge" id="chatBadge" hidden>0</span></button>
       <button class="tab" data-tab="crew"><i data-lucide="users"></i>Crew</button>
     </nav>
   </section>
@@ -529,7 +656,7 @@ const grpLabel = m => GRP[grpOf(m)];
 const sleep = ms => new Promise(r => setTimeout(r, ms));
 
 /* ---------- State ---------- */
-const DEFAULTS = { family: null, myId: null, token: null, famCache: [], watched: false, checks: {}, screen: 'intro', tab: 'today', planDay: 0, resort: 'palace', who: 'all' };
+const DEFAULTS = { family: null, myId: null, token: null, famCache: [], plan: null, planCache: null, me: null, lastRead: null, watched: false, checks: {}, screen: 'intro', tab: 'today', planDay: 0, resort: 'palace', who: 'all' };
 let S = Object.assign({}, DEFAULTS, load() || {});
 function load() { try { return JSON.parse(localStorage.getItem(KEY)); } catch (e) { return null; } }
 let warned = false;
@@ -880,16 +1007,18 @@ function go(name) {
   if (name === 'family') renderFamilyForm();
   if (name === 'welcome') renderWelcome();
   if (name === 'booth') renderBooth();
-  if (name === 'app') { renderAll(); setTab(S.tab, true); }
+  if (name === 'app') { renderAll(); setTab(S.tab, true); loadPlan().then(rerenderPlan); if (shared()) pollChat().then(() => { if (S.tab === 'chat') { renderChat(); icons(); } }); }
 }
 function setTab(t, force) {
-  const tabs = ['today', 'plan', 'resorts', 'crew'], i = tabs.indexOf(t);
+  const tabs = ['today', 'plan', 'resorts', 'chat', 'crew'], i = tabs.indexOf(t);
   if (S.tab === t && !force) { $('#p-' + t).scrollTo({ top: 0, behavior: RM ? 'auto' : 'smooth' }); return; }
   S.tab = t; save();
   $$('.pane').forEach(p => p.classList.toggle('on', p.id === 'p-' + t));
   $$('.tab').forEach(b => { b.classList.toggle('on', b.dataset.tab === t); b.setAttribute('aria-current', b.dataset.tab === t ? 'page' : 'false'); });
   $('#tabInd').style.transform = `translateX(${i * 100}%)`;
   if (t === 'resorts') initModel();
+  if (t === 'chat') { renderChat(); icons(); pollChat(); }
+  scheduleChat(); updateBadge();
 }
 
 /* ---------- Family form ---------- */
@@ -1028,20 +1157,10 @@ function tripState() {
   return { phase: 'after' };
 }
 const avStyle = (m, i) => `background-image:url('${figSrc(m, i)}')`;
-function renderAll() { if (!S.family) return; renderTop(); renderToday(); renderPlan(); renderResorts(); renderCrew(); icons(); }
+function renderAll() { if (!S.family) return; renderTop(); renderToday(); renderPlan(); renderResorts(); renderCrew(); if (S.tab === 'chat') renderChat(); icons(); }
 function renderTop() {
   const f = S.family;
   $('#avsBtn').innerHTML = f.members.slice(0, 4).map((m, i) => `<span class="av" style="${avStyle(m, i)}"></span>`).join('') + `<span class="fam">${esc(f.name)}</span>`;
-}
-function timelineHTML(day) {
-  return `<div class="tl">${day.items.map((it, k) => `
-    <div class="ti" style="animation-delay:${k * 60}ms">
-      <div class="t">${esc(it.t)}</div>
-      <div class="c${it.opt ? ' opt' : ''}">
-        <div class="row"><i data-lucide="${it.i}"></i><div><strong>${esc(it.title)}</strong><p>${esc(it.note)}</p></div></div>
-        <div class="chips"><span class="chip">${WHERE[it.where]}</span>${it.who ? `<span class="chip ${it.who === 'adult' ? 'no' : 'warn'}">${it.who === 'adult' ? '18+' : it.who === 'kids' ? 'Kids' : 'Height 1.20 m'}</span>` : ''}${it.opt ? '<span class="chip">Optional · extra cost</span>' : ''}</div>
-      </div>
-    </div>`).join('')}</div>`;
 }
 function miniFig(m, i) { return `<button class="mini" data-fig="${m.id}"><div class="fig"><img src="${figSrc(m, i)}" alt="${esc(m.name)}" loading="lazy"></div><strong>${esc(m.name)}</strong><small>${grpLabel(m)}</small></button>`; }
 function renderToday() {
@@ -1066,9 +1185,10 @@ function renderToday() {
       <div><p class="mono k">Check-in</p><div class="v">Thu, Dec 24</div><div class="s">From 3:00 PM</div></div>
       <div><p class="mono k">Check-out</p><div class="v">Mon, Dec 28</div><div class="s">By 11:00 AM</div></div>
     </div>
-    ${st.phase === 'during' ? `<div class="sec-h"><h3>Today's plan</h3><button data-tab-go="plan">Full plan <i data-lucide="chevron-right"></i></button></div>${timelineHTML(DAYS[st.day])}` : ''}
+    ${st.phase === 'during' ? `<div class="sec-h"><h3>Today's plan</h3><button data-tab-go="plan">Full plan <i data-lucide="chevron-right"></i></button></div>${timelineHTML(dayItems(st.day))}` : ''}
     <div class="sec-h"><h3>The ${esc(f.name)} family</h3><button data-tab-go="crew">${API.mode === 'server' && !f.example ? `${joined} of 5 joined` : 'Crew'} <i data-lucide="chevron-right"></i></button></div>
     <div class="strip">${f.members.map(miniFig).join('')}</div>
+    ${shared() ? `<div class="sec-h"><h3>Crew chat</h3><button data-tab-go="chat">Open <i data-lucide="chevron-right"></i></button></div><div class="card" id="todayChat"></div>` : ''}
     ${st.phase === 'before' ? `<div class="sec-h"><h3>Before you fly</h3></div>
     <div class="card"><div class="list">${checks.map(c => {
       const on = c.auto !== undefined ? c.auto : !!S.checks[c.id];
@@ -1077,16 +1197,9 @@ function renderToday() {
     }).join('')}</div></div>` : ''}
     <div class="sec-h"><h3>Good to know</h3></div>
     <div class="know">${KNOW}</div>
-    ${st.phase === 'before' ? `<div class="sec-h"><h3>Day 1 at a glance</h3><button data-tab-go="plan">Full plan <i data-lucide="chevron-right"></i></button></div>${timelineHTML({ items: DAYS[0].items.slice(0, 3) })}` : ''}`;
+    ${st.phase === 'before' ? `<div class="sec-h"><h3>Day 1 at a glance</h3><button data-tab-go="plan">Full plan <i data-lucide="chevron-right"></i></button></div>${timelineHTML(dayItems(0).slice(0, 3))}` : ''}`;
   reg($('#todayCanvas'), (x, W, H, t) => drawDusk(x, W, H, t, { hz: .66, sunX: .3 }));
-}
-function renderPlan() {
-  const st = tripState(), d = DAYS[S.planDay] || DAYS[0];
-  $('#p-plan').innerHTML = `
-    <div class="days" role="tablist">${DAYS.map((x, i) => `<button class="dchip${i === S.planDay ? ' on' : ''}" data-day="${i}" role="tab" aria-selected="${i === S.planDay}"><span class="mono">${x.wk}</span><b>${x.d}</b></button>`).join('')}</div>
-    <div class="dhead"><p class="mono" style="margin:0 0 6px;color:var(--accent)">Day ${S.planDay + 1} of 5${st.phase === 'during' && st.day === S.planDay ? ' · Today' : ''}</p><h2>${esc(d.title)}</h2><p>${esc(d.sub)}</p></div>
-    ${timelineHTML(d)}
-    <p class="note"><i data-lucide="info"></i><span>Times are a suggested rhythm. Check the resort's daily program on arrival for exact hours.</span></p>`;
+  renderTodayChat();
 }
 function whoChips() {
   const sel = S.who;
@@ -1138,7 +1251,7 @@ function renderCrew() {
 
 /* ---------- Sheet + toast ---------- */
 function openSheet(html) { $('#sheet').innerHTML = '<div class="grab"></div>' + html; icons(); $('#scrim').classList.add('on'); $('#sheet').classList.add('on'); }
-function closeSheet() { $('#scrim').classList.remove('on'); $('#sheet').classList.remove('on'); }
+function closeSheet() { $('#scrim').classList.remove('on'); $('#sheet').classList.remove('on', 'tall'); }
 function openFig(id) {
   const p = findPerson(id); if (!p) return;
   const m = p.m, real = isReal(m);
@@ -1155,10 +1268,15 @@ document.addEventListener('click', async e => {
   const b = e.target.closest('button');
   if (!b) {
     if (e.target.id === 'scrim') closeSheet();
+    const card = e.target.closest('.c[data-item]'); if (card && !DRAG) return itemSheet(card.dataset.item);
     if (e.target.closest('#modelStage') && downAt && Math.hypot(e.clientX - downAt[0], e.clientY - downAt[1]) < 6) clearPin();
     return;
   }
   const d = b.dataset;
+  if ($('#sheet').classList.contains('on') && sheetClick(b, d)) return;
+  if (d.item) return itemSheet(d.item);
+  if (d.me) { S.me = d.me; save(); renderChat(); icons(); setTimeout(() => { const i = $('#chatIn'); if (i) i.focus(); }, 50); return; }
+  if (d.quick) return sendChat(d.quick);
   if (b.id === 'vplay') return playVideo();
   if (d.go) return go(d.go);
   if (d.tab) return setTab(d.tab);
@@ -1175,6 +1293,8 @@ document.addEventListener('click', async e => {
     const a = d.act;
     if (a === 'close') return closeSheet();
     if (a === 'pin-close') return clearPin();
+    if (a === 'plan-add') return openAdd(S.planDay || 0);
+    if (a === 'who-chat') { S.me = null; save(); renderChat(); icons(); return; }
     if (a === 'model-full') return toggleFull();
     if (a === 'model-reset') return resetView();
     if (a === 'video') { go('welcome'); setTimeout(playVideo, 500); return; }
@@ -1191,7 +1311,7 @@ document.addEventListener('click', async e => {
       closeSheet();
       const gone = S.myId;
       if (API.mode === 'server' && gone && !(S.family && S.family.example)) { try { await api(`families/${gone}`, { method: 'DELETE' }); } catch (err) { toast(err.message); return; } }
-      Object.assign(S, DEFAULTS, { checks: {}, famCache: [] }); FAM = FAM.filter(f => f.id !== gone); save(); if (API.mode === 'server') refresh().catch(() => {}); return go('intro');
+      Object.assign(S, DEFAULTS, { checks: {}, famCache: [] }); PLAN = []; CHAT = []; chatLast = 0; chatReady = false; FAM = FAM.filter(f => f.id !== gone); save(); if (API.mode === 'server') refresh().catch(() => {}); return go('intro');
     }
   }
 });
@@ -1617,6 +1737,308 @@ function toggleFull() {
   icons();
 }
 
+/* ---------- Shared plan: data ---------- */
+const DEFAULT_PLAN = DAYS.flatMap((d, di) => d.items.map((it, k) => ({ id: `d${di}-${k}`, day: di, pos: k, t: it.t, title: it.title, note: it.note, place: it.where, who: it.who || '', icon: it.i, opt: !!it.opt })));
+let PLAN = [];
+const isExample = () => !!(S.family && S.family.example);
+const shared = () => API.mode === 'server' && !isExample() && !!S.token;
+const dayItems = di => PLAN.filter(p => p.day === di).sort((a, b) => a.pos - b.pos);
+const dayName = di => `${DAYS[di].wk}, Dec ${DAYS[di].d}`;
+const actorHdr = () => S.me ? { 'x-member-id': S.me } : {};
+async function loadPlan() {
+  if (API.mode === 'server' && !isExample()) {
+    try { const d = await api('plan'); PLAN = d.items; S.planCache = PLAN; save(); return; }
+    catch (e) { if (S.planCache && S.planCache.length) { PLAN = S.planCache.map(p => ({ ...p })); return; } }
+  }
+  PLAN = (S.plan && S.plan.length ? S.plan : DEFAULT_PLAN).map(p => ({ ...p }));
+}
+function persistLocal() { if (!shared()) { S.plan = PLAN; save(); } else { S.planCache = PLAN; save(); } }
+function rerenderPlan() { if (S.screen !== 'app' || DRAG) return; renderPlan(); renderToday(); icons(); }
+async function planCall(fn) { try { await fn(); } catch (e) { toast(e.message); await loadPlan(); rerenderPlan(); } }
+async function planAdd(item) {
+  const tmp = Object.assign({ t: '', note: '', place: 'palace', who: '', icon: 'sparkles', opt: false }, item, { id: 'tmp' + Date.now(), pos: dayItems(item.day).length });
+  PLAN.push(tmp); persistLocal(); rerenderPlan();
+  toast(`Added to ${dayName(item.day)}`);
+  if (shared()) await planCall(async () => { const d = await api('plan', { method: 'POST', json: tmp, headers: actorHdr() }); Object.assign(tmp, d.item); persistLocal(); rerenderPlan(); pollChat(); });
+}
+async function planUpdate(id, fields) {
+  const it = PLAN.find(p => p.id === id); if (!it) return;
+  if (fields.day != null && fields.day !== it.day) it.pos = dayItems(fields.day).length;
+  Object.assign(it, fields); persistLocal(); rerenderPlan();
+  if (shared()) await planCall(async () => { await api(`plan/${encodeURIComponent(id)}`, { method: 'PUT', json: it, headers: actorHdr() }); pollChat(); });
+}
+async function planDelete(id) {
+  const it = PLAN.find(p => p.id === id); if (!it) return;
+  PLAN = PLAN.filter(p => p.id !== id); persistLocal(); rerenderPlan();
+  toast(`Removed “${it.title}”`);
+  if (shared()) await planCall(async () => { await api(`plan/${encodeURIComponent(id)}`, { method: 'DELETE', headers: actorHdr() }); pollChat(); });
+}
+async function planOrder(day, ids) {
+  ids.forEach((id, i) => { const it = PLAN.find(p => p.id === id); if (it) { it.day = day; it.pos = i; } });
+  persistLocal(); rerenderPlan();
+  if (shared()) await planCall(async () => { await api('plan/order', { method: 'POST', json: { day, ids }, headers: actorHdr() }); pollChat(); });
+}
+
+/* ---------- Shared plan: view ---------- */
+const WHO_CHIP = { adult: ['no', '18+'], kids: ['', 'Kids'], slides: ['warn', 'Height 1.20 m'] };
+function itemHTML(it, k, editable) {
+  const w = WHO_CHIP[it.who];
+  return `<div class="ti" data-id="${esc(it.id)}" style="animation-delay:${k * 50}ms">
+      <div class="t">${esc(it.t || '·')}</div>
+      <div class="c${it.opt ? ' opt' : ''}"${editable ? ` data-item="${esc(it.id)}"` : ''}>
+        <div class="row"><i data-lucide="${esc(it.icon)}"></i><div class="grow"><strong>${esc(it.title)}</strong>${it.note ? `<p>${esc(it.note)}</p>` : ''}</div>${editable ? `<button class="grip" data-grip="${esc(it.id)}" aria-label="Drag “${esc(it.title)}” to reorder or onto another day"><i data-lucide="grip-vertical"></i></button>` : ''}</div>
+        <div class="chips"><span class="chip">${WHERE[it.place] || 'Palace Cabo'}</span>${w ? `<span class="chip ${w[0]}">${w[1]}</span>` : ''}${it.opt ? '<span class="chip">Optional · extra cost</span>' : ''}${editable ? `<button class="chip more" data-item="${esc(it.id)}"><i data-lucide="sliders-horizontal"></i>Options</button>` : ''}</div>
+      </div>
+    </div>`;
+}
+const timelineHTML = (items, editable) => `<div class="tl"${editable ? ' id="planList"' : ''}>${items.map((it, k) => itemHTML(it, k, editable)).join('')}</div>`;
+function renderPlan() {
+  const st = tripState(), di = S.planDay || 0, d = DAYS[di], items = dayItems(di);
+  const tip = shared() ? 'Everyone in the crew sees changes. Drag the handle to reorder, or drop an item on another day.'
+    : isExample() ? 'You can try editing here. Changes in the example stay on this phone.'
+    : 'Changes stay on this phone in this preview.';
+  $('#p-plan').innerHTML = `
+    <div class="days" role="tablist">${DAYS.map((x, i) => `<button class="dchip${i === di ? ' on' : ''}" data-day="${i}" role="tab" aria-selected="${i === di}"><span class="mono">${x.wk}</span><b>${x.d}</b><span class="cnt">${dayItems(i).length}</span></button>`).join('')}</div>
+    <div class="dhead"><p class="mono" style="margin:0 0 6px;color:var(--accent)">Day ${di + 1} of 5${st.phase === 'during' && st.day === di ? ' · Today' : ''}</p><h2>${esc(d.title)}</h2><p>${esc(d.sub)}</p></div>
+    ${items.length ? timelineHTML(items, true) : `<div class="tl" id="planList"></div><div class="empty-day"><i data-lucide="calendar-plus"></i><span>Nothing planned yet for ${dayName(di)}.</span></div>`}
+    <button class="btn btn-primary" data-act="plan-add"><i data-lucide="plus"></i> Add to ${dayName(di)}</button>
+    <p class="note"><i data-lucide="move"></i><span>${tip}</span></p>`;
+}
+
+/* ---------- Options: catalog of things to add ---------- */
+const CAT_ICON = { Eat: 'utensils', Drink: 'martini', Swim: 'waves', Play: 'trophy', Night: 'party-popper', Wellness: 'flower-2' };
+const RULE_WHO = { adult: 'adult', kids: 'kids', slides: 'slides' };
+const EXTRA_OPTS = [
+  { title: 'Boat to El Arco', icon: 'ship', place: 'offsite', note: "Land's End and Lover's Beach. Booked separately.", opt: true, when: 'Morning' },
+  { title: 'Whale watching', icon: 'fish', place: 'offsite', note: 'Whale season starts in December. Booked separately.', opt: true, when: 'Morning' },
+  { title: 'Marina Cabo San Lucas', icon: 'anchor', place: 'offsite', note: 'Walk the marina, shops and restaurants in town.', when: 'Afternoon' },
+  { title: 'Group dinner', icon: 'utensils', place: 'palace', note: 'À la carte at Palace Cabo. Long pants.', when: 'Evening' },
+  { title: 'All 5 families, one photo', icon: 'camera', place: 'palace', note: 'Médano Beach at golden hour.', when: 'Sunset' },
+  { title: 'Free time', icon: 'armchair', place: 'palace', note: 'Nothing planned. Pool, nap, repeat.', when: 'Afternoon' },
+  { title: 'Airport transfer', icon: 'bus', place: 'offsite', note: 'About 45 minutes to SJD.', when: 'Midday' }
+];
+function catalog() {
+  const groups = [{ h: 'Out and about', items: EXTRA_OPTS }];
+  ['palace', 'santafe'].forEach(r => groups.push({
+    h: r === 'palace' ? 'At Palace Cabo' : 'At Santa Fe',
+    items: RESORTS[r].items.filter(x => x.r !== 'sfdinner').map(x => ({ title: x.n, icon: x.i || CAT_ICON[x.c], place: r, note: x.w + (x.when ? ` · ${x.when}` : ''), who: RULE_WHO[x.r] || '', opt: !!x.x, when: x.c === 'Night' ? 'Night' : /Dinner/.test(x.when || '') ? 'Evening' : x.c === 'Eat' ? 'Midday' : 'Afternoon' }))
+  }));
+  return groups;
+}
+const WHENS = ['Morning', 'Midday', 'Afternoon', 'Sunset', 'Evening', 'Night'];
+let ADD = null;
+function openAdd(day) {
+  ADD = { day, when: '', tab: 'opts' };
+  const groups = catalog();
+  ADD.flat = groups.flatMap(g => g.items);
+  let n = 0;
+  openSheet(`<h3>Add to ${dayName(day)}</h3>
+    <div class="seg2" role="tablist"><button class="on" data-addtab="opts" role="tab">Pick an option</button><button data-addtab="own" role="tab">Write your own</button></div>
+    <div class="when"><span class="mono">When</span><div class="when-row">${WHENS.map(w => `<button class="wpill" data-when="${w}">${w}</button>`).join('')}</div></div>
+    <div id="addOpts" class="opts">${groups.map(g => `<h4 class="mono">${g.h}</h4>${g.items.map(o => `<button class="opt" data-opt="${n++}"><span class="tile"><i data-lucide="${esc(o.icon)}"></i></span><span class="tx"><strong>${esc(o.title)}</strong><span>${esc(o.note)}</span></span><i data-lucide="plus" class="plus"></i></button>`).join('')}`).join('')}</div>
+    <div id="addOwn" class="form" hidden>
+      <label for="ownTitle">What</label><input id="ownTitle" maxlength="60" placeholder="Sunset tacos at the beach">
+      <label for="ownTime">Time</label><input id="ownTime" maxlength="16" placeholder="6:30 PM">
+      <label>Where</label><div class="pick3">${Object.keys(WHERE).map((k, i) => `<button class="${i ? '' : 'on'}" data-ownplace="${k}">${WHERE[k]}</button>`).join('')}</div>
+      <label for="ownNote">Details</label><textarea id="ownNote" maxlength="220" rows="2" placeholder="Who's in, what to bring"></textarea>
+      <p class="err" id="ownErr" role="alert"></p>
+      <button class="btn btn-primary" data-act="own-add"><i data-lucide="plus"></i> Add to plan</button>
+    </div>`);
+  $('#sheet').classList.add('tall');
+}
+function itemSheet(id) {
+  const it = PLAN.find(p => p.id === id); if (!it) return;
+  ADD = { id, place: it.place, day: it.day, opt: it.opt };
+  openSheet(`<h3>${esc(it.title)}</h3><p>${dayName(it.day)}${it.t ? ' · ' + esc(it.t) : ''}</p>
+    <div class="form">
+      <label>Day</label><div class="pick5">${DAYS.map((x, i) => `<button class="${i === it.day ? 'on' : ''}" data-itday="${i}"><span class="mono">${x.wk}</span>${x.d}</button>`).join('')}</div>
+      <label for="itTime">Time</label><div class="when-row">${WHENS.map(w => `<button class="wpill${it.t === w ? ' on' : ''}" data-ittime="${w}">${w}</button>`).join('')}</div>
+      <input id="itTime" maxlength="16" value="${esc(it.t)}" placeholder="Or type a time, like 10:30 AM">
+      <label for="itTitle">What</label><input id="itTitle" maxlength="60" value="${esc(it.title)}">
+      <label>Where</label><div class="pick3">${Object.keys(WHERE).map(k => `<button class="${it.place === k ? 'on' : ''}" data-itplace="${k}">${WHERE[k]}</button>`).join('')}</div>
+      <label for="itNote">Details</label><textarea id="itNote" maxlength="220" rows="2">${esc(it.note)}</textarea>
+      <button class="toggle${it.opt ? ' on' : ''}" data-act="it-opt" aria-pressed="${it.opt}"><span class="sw"></span>Optional, costs extra</button>
+      <p class="err" id="itErr" role="alert"></p>
+      <div class="row3"><button class="btn btn-ghost danger" data-act="it-del"><i data-lucide="trash-2"></i></button><button class="btn btn-ghost" data-act="it-dup"><i data-lucide="copy"></i> Duplicate</button><button class="btn btn-primary" data-act="it-save">Save</button></div>
+    </div>`);
+  $('#sheet').classList.add('tall');
+}
+function sheetClick(b, d) {
+  if (d.addtab) { $$('.seg2 button').forEach(x => x.classList.toggle('on', x === b)); $('#addOpts').hidden = d.addtab !== 'opts'; $('#addOwn').hidden = d.addtab !== 'own'; return true; }
+  if (d.when) { const on = !b.classList.contains('on'); $$('[data-when]').forEach(x => x.classList.remove('on')); b.classList.toggle('on', on); ADD.when = on ? d.when : ''; return true; }
+  if (d.opt != null && ADD && ADD.flat) { const o = ADD.flat[+d.opt]; closeSheet(); planAdd({ day: ADD.day, t: ADD.when || o.when || '', title: o.title, note: o.note, place: o.place, who: o.who || '', icon: o.icon, opt: !!o.opt }); return true; }
+  if (d.ownplace) { $$('[data-ownplace]').forEach(x => x.classList.toggle('on', x === b)); return true; }
+  if (d.itday != null) { $$('[data-itday]').forEach(x => x.classList.toggle('on', x === b)); ADD.day = +d.itday; return true; }
+  if (d.ittime) { $$('[data-ittime]').forEach(x => x.classList.toggle('on', x === b)); $('#itTime').value = d.ittime; return true; }
+  if (d.itplace) { $$('[data-itplace]').forEach(x => x.classList.toggle('on', x === b)); ADD.place = d.itplace; return true; }
+  if (d.act === 'it-opt') { ADD.opt = !ADD.opt; b.classList.toggle('on', ADD.opt); b.setAttribute('aria-pressed', ADD.opt); return true; }
+  if (d.act === 'own-add') {
+    const title = $('#ownTitle').value.trim(); if (!title) { $('#ownErr').textContent = 'Give it a name.'; $('#ownTitle').focus(); return true; }
+    const place = ($('[data-ownplace].on') || {}).dataset?.ownplace || 'palace';
+    closeSheet(); planAdd({ day: ADD.day, t: $('#ownTime').value.trim() || ADD.when, title, note: $('#ownNote').value.trim(), place, icon: place === 'offsite' ? 'map-pin' : 'sparkles' }); return true;
+  }
+  if (d.act === 'it-save') {
+    const title = $('#itTitle').value.trim(); if (!title) { $('#itErr').textContent = 'Give it a name.'; return true; }
+    const id = ADD.id, fields = { day: ADD.day, t: $('#itTime').value.trim(), title, note: $('#itNote').value.trim(), place: ADD.place, opt: ADD.opt };
+    const moved = fields.day !== PLAN.find(p => p.id === id).day;
+    closeSheet(); planUpdate(id, fields); toast(moved ? `Moved to ${dayName(fields.day)}` : 'Saved'); return true;
+  }
+  if (d.act === 'it-dup') { const it = PLAN.find(p => p.id === ADD.id); closeSheet(); if (it) planAdd({ ...it, day: ADD.day }); return true; }
+  if (d.act === 'it-del') { const id = ADD.id; closeSheet(); planDelete(id); return true; }
+  return false;
+}
+
+/* ---------- Drag and drop (pointer events: works with touch and mouse) ---------- */
+let DRAG = null;
+function flip(list, mutate) {
+  const els = [...list.children], first = new Map(els.map(el => [el, el.getBoundingClientRect().top]));
+  mutate();
+  if (RM) return;
+  els.forEach(el => { const dy = first.get(el) - el.getBoundingClientRect().top; if (dy && !el.classList.contains('dragging')) el.animate([{ transform: `translateY(${dy}px)` }, { transform: 'none' }], { duration: 200, easing: 'cubic-bezier(.2,.8,.2,1)' }); });
+}
+document.addEventListener('pointerdown', e => {
+  const g = e.target.closest('[data-grip]'); if (!g || e.button > 0) return;
+  e.preventDefault();
+  const row = g.closest('.ti'), list = row.parentNode, r = row.getBoundingClientRect();
+  const ghost = row.cloneNode(true); ghost.classList.add('ghost');
+  Object.assign(ghost.style, { width: r.width + 'px', left: r.left + 'px', top: r.top + 'px' });
+  document.body.appendChild(ghost);
+  row.classList.add('dragging');
+  DRAG = { id: g.dataset.grip, row, list, ghost, dy: e.clientY - r.top, overDay: null, pane: $('#p-plan'), y: e.clientY };
+  try { g.setPointerCapture(e.pointerId); } catch (err) {}
+  if (navigator.vibrate) navigator.vibrate(8);
+  DRAG.scroll = setInterval(() => {
+    if (!DRAG) return; const pr = DRAG.pane.getBoundingClientRect();
+    if (DRAG.y < pr.top + 70) DRAG.pane.scrollTop -= 10; else if (DRAG.y > pr.bottom - 130) DRAG.pane.scrollTop += 10;
+  }, 16);
+});
+document.addEventListener('pointermove', e => {
+  if (!DRAG) return; e.preventDefault();
+  const { ghost, row, list } = DRAG; DRAG.y = e.clientY;
+  ghost.style.top = (e.clientY - DRAG.dy) + 'px';
+  ghost.style.visibility = 'hidden'; const el = document.elementFromPoint(e.clientX, e.clientY); ghost.style.visibility = '';
+  const chip = el && el.closest('.dchip'), target = chip && +chip.dataset.day !== S.planDay ? +chip.dataset.day : null;
+  $$('.dchip').forEach(c => c.classList.toggle('drop', target != null && +c.dataset.day === target));
+  ghost.classList.toggle('to-day', target != null);
+  DRAG.overDay = target;
+  if (target == null) {
+    let before = null;
+    for (const s of list.querySelectorAll('.ti:not(.dragging)')) { const b = s.getBoundingClientRect(); if (e.clientY < b.top + b.height / 2) { before = s; break; } }
+    if (before !== row.nextElementSibling && !(before === null && row === list.lastElementChild)) flip(list, () => list.insertBefore(row, before));
+  }
+}, { passive: false });
+function endDrag() {
+  if (!DRAG) return;
+  const { id, row, list, ghost, overDay } = DRAG; clearInterval(DRAG.scroll); DRAG = null;
+  ghost.remove(); row.classList.remove('dragging'); $$('.dchip').forEach(c => c.classList.remove('drop'));
+  if (overDay != null) { const it = PLAN.find(p => p.id === id); planUpdate(id, { day: overDay }); toast(`Moved “${it ? it.title : 'item'}” to ${dayName(overDay)}`); return; }
+  const ids = [...list.querySelectorAll('.ti')].map(x => x.dataset.id), cur = dayItems(S.planDay).map(p => p.id);
+  if (ids.join() !== cur.join()) planOrder(S.planDay, ids);
+}
+document.addEventListener('pointerup', endDrag);
+document.addEventListener('pointercancel', endDrag);
+
+/* ---------- Chat ---------- */
+let CHAT = [], chatLast = 0, chatTimer = null, chatReady = false;
+const QUICK = ['On my way', 'At the pool', 'Dinner at 7?', 'Where is everyone?', 'Save us seats'];
+function meMember() { return S.family && S.family.members.find(m => m.id === S.me); }
+async function pollChat() {
+  if (!shared()) return;
+  try {
+    const d = await api(`chat?after=${chatLast}`);
+    const fresh = d.messages.filter(m => !CHAT.some(x => x.id === m.id));
+    if (!chatReady) { chatReady = true; if (S.lastRead == null) { S.lastRead = fresh.length ? fresh[fresh.length - 1].id : 0; save(); } }
+    if (fresh.length) {
+      CHAT.push(...fresh); if (CHAT.length > 400) CHAT = CHAT.slice(-300);
+      chatLast = CHAT[CHAT.length - 1].id;
+      if (S.screen === 'app' && S.tab === 'chat') { drawMessages(); markRead(); }
+      if (fresh.some(m => m.kind === 'plan' && m.member_id !== S.me)) { await loadPlan(); rerenderPlan(); }
+      if (S.screen === 'app' && S.tab === 'today') renderTodayChat();
+    }
+    updateBadge();
+  } catch (e) {}
+}
+function scheduleChat() {
+  clearTimeout(chatTimer);
+  const fast = S.screen === 'app' && S.tab === 'chat' && !document.hidden;
+  chatTimer = setTimeout(async () => { await pollChat(); scheduleChat(); }, fast ? 2500 : 15000);
+}
+document.addEventListener('visibilitychange', () => { if (!document.hidden) { pollChat(); scheduleChat(); } });
+function markRead() { if (CHAT.length) { S.lastRead = CHAT[CHAT.length - 1].id; save(); } updateBadge(); }
+function updateBadge() {
+  const n = CHAT.filter(m => m.id > (S.lastRead || 0) && m.kind === 'text' && m.member_id !== S.me).length;
+  const b = $('#chatBadge'); if (!b) return;
+  b.textContent = n > 9 ? '9+' : String(n); b.hidden = !n || (S.tab === 'chat' && S.screen === 'app');
+}
+const hhmm = ts => new Date(ts).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
+function dayLabel(ts) {
+  const d = new Date(ts), t = new Date(), y = new Date(Date.now() - 864e5);
+  if (d.toDateString() === t.toDateString()) return 'Today';
+  if (d.toDateString() === y.toDateString()) return 'Yesterday';
+  return d.toLocaleDateString([], { weekday: 'short', month: 'short', day: 'numeric' });
+}
+function chatAvatar(m) {
+  const p = m.member_id && findPerson(m.member_id);
+  return p ? `<span class="av" style="${avStyle(p.m, p.i)}"></span>` : `<span class="av ini">${esc((m.name || '?')[0])}</span>`;
+}
+function drawMessages(scroll = true) {
+  const list = $('#chatList'); if (!list) return;
+  const atBottom = list.scrollHeight - list.scrollTop - list.clientHeight < 80;
+  let html = '', lastDay = '', prev = null;
+  for (const m of CHAT) {
+    const dl = dayLabel(m.created_at);
+    if (dl !== lastDay) { html += `<div class="dsep"><span>${dl}</span></div>`; lastDay = dl; prev = null; }
+    if (m.kind !== 'text') { html += `<div class="sys"><i data-lucide="calendar-check"></i><span>${esc(m.text)}</span></div>`; prev = null; continue; }
+    const mine = m.member_id === S.me, cont = prev && prev.member_id === m.member_id && m.created_at - prev.created_at < 5 * 60e3;
+    html += `<div class="msg${mine ? ' me' : ''}${cont ? ' cont' : ''}${m.pending ? ' pending' : ''}">${mine ? '' : cont ? '<span class="av sp"></span>' : chatAvatar(m)}<div class="col">${!mine && !cont ? `<span class="who">${esc(m.name)} <em>· ${esc(m.fam)}</em></span>` : ''}<div class="bub">${esc(m.text)}</div>${cont ? '' : `<span class="tm">${m.pending ? 'Sending…' : hhmm(m.created_at)}</span>`}</div></div>`;
+    prev = m;
+  }
+  list.innerHTML = html || `<div class="chat-empty"><i data-lucide="message-circle-heart"></i><strong>Say hola to the crew</strong><span>Everyone from the five families sees this chat.</span></div>`;
+  icons();
+  if (scroll || atBottom) list.scrollTop = list.scrollHeight;
+}
+function renderChat() {
+  const el = $('#p-chat');
+  if (!shared()) {
+    el.innerHTML = `<div class="chat-off card"><span class="tile"><i data-lucide="message-circle"></i></span><strong>Crew chat</strong><span>${isExample() ? 'Chat opens once your family is set up from the invite link.' : API.mode === 'server' ? 'Set up your family to join the chat.' : 'Chat works in the live app, opened from the invite link.'}</span>${isExample() ? '<button class="btn btn-primary" data-act="setup">Set up your family</button>' : ''}</div>`;
+    return;
+  }
+  const me = meMember(), oth = others(), people = (S.family ? S.family.members.length : 0) + oth.reduce((a, f) => a + f.members.length, 0);
+  el.innerHTML = `
+    <div class="chat-head"><div><strong>Crew chat</strong><span>${1 + oth.length} ${oth.length ? 'families' : 'family'} · ${people} people</span></div>
+      ${me ? `<button class="as" data-act="who-chat"><span class="av" style="${avStyle(me, S.family.members.indexOf(me))}"></span>${esc(me.name)}<i data-lucide="chevron-down"></i></button>` : ''}</div>
+    <div class="chat-list" id="chatList"></div>
+    <div class="chat-foot">
+      ${me ? `<div class="quick">${QUICK.map(q => `<button data-quick="${esc(q)}">${esc(q)}</button>`).join('')}</div>
+      <form class="composer" id="composer"><textarea id="chatIn" rows="1" maxlength="1000" placeholder="Message the crew" aria-label="Message the crew"></textarea><button type="submit" class="send" aria-label="Send"><i data-lucide="arrow-up"></i></button></form>`
+      : `<div class="who-pick"><span>Who's chatting on this phone?</span><div class="who-row">${S.family.members.map((m, i) => `<button data-me="${m.id}"><span class="av" style="${avStyle(m, i)}"></span>${esc(m.name)}</button>`).join('')}</div></div>`}
+    </div>`;
+  drawMessages(true); markRead();
+}
+function renderTodayChat() {
+  const box = $('#todayChat'); if (!box) return;
+  const last = CHAT.filter(m => m.kind === 'text').slice(-2);
+  box.innerHTML = last.length ? last.map(m => `<div class="tc">${chatAvatar(m)}<div><strong>${esc(m.name)}</strong><span>${esc(m.text)}</span></div><em>${hhmm(m.created_at)}</em></div>`).join('') : '<p class="tc-empty">No messages yet. Start the conversation.</p>';
+}
+async function sendChat(text) {
+  text = (text || '').trim(); if (!text) return;
+  const me = meMember(); if (!me) { toast("Pick who's chatting first"); return; }
+  const tmp = { id: 1e15 + Date.now(), member_id: me.id, name: me.name, fam: S.family.name, kind: 'text', text, created_at: Date.now(), pending: true };
+  CHAT.push(tmp); drawMessages(true);
+  try { await api('chat', { method: 'POST', json: { member_id: me.id, text } }); CHAT = CHAT.filter(m => m !== tmp); await pollChat(); drawMessages(true); }
+  catch (e) { CHAT = CHAT.filter(m => m !== tmp); drawMessages(true); toast(e.message); const i = $('#chatIn'); if (i && !i.value) i.value = text; }
+}
+document.addEventListener('submit', e => {
+  if (e.target.id !== 'composer') return; e.preventDefault();
+  const i = $('#chatIn'), v = i.value; i.value = ''; i.style.height = ''; sendChat(v);
+});
+document.addEventListener('keydown', e => {
+  if (e.target.id === 'chatIn' && e.key === 'Enter' && !e.shiftKey && !e.isComposing) { e.preventDefault(); $('#composer').requestSubmit(); }
+});
+document.addEventListener('input', e => { if (e.target.id === 'chatIn') { e.target.style.height = 'auto'; e.target.style.height = Math.min(120, e.target.scrollHeight) + 'px'; } });
+document.addEventListener('focusin', e => { if (e.target.id === 'chatIn') $('#s-app').classList.add('typing'); });
+document.addEventListener('focusout', e => { if (e.target.id === 'chatIn') setTimeout(() => $('#s-app').classList.remove('typing'), 120); });
+
 /* ---------- Boot ---------- */
 reg($('#heroCanvas'), (x, W, H, t) => drawDusk(x, W, H, t, { hz: .5, sunX: .28 }));
 wireThumb();
@@ -1626,11 +2048,14 @@ icons();
   await fonts();
   scenes.forEach(o => o.dirty = true);
   if (API.mode === 'locked') { $('#lockNote').hidden = false; $('#startBtn').hidden = true; }
+  if (API.mode !== 'server') await loadPlan();
   if (API.mode === 'server') {
     try { await refresh(); } catch (e) { console.warn(e); }
+    await loadPlan(); pollChat(); scheduleChat();
     setInterval(async () => {
       if (document.hidden || S.screen !== 'app') return;
       try { if (await refresh()) { renderAll(); } } catch (e) {}
+      if (!DRAG && !$('#sheet').classList.contains('on')) { const before = JSON.stringify(PLAN); await loadPlan(); if (JSON.stringify(PLAN) !== before) rerenderPlan(); }
     }, 30000);
   }
   let start = S.screen || 'intro';

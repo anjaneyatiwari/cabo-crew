@@ -12,6 +12,14 @@
 //   PUT    /api/members/:id/fig          (JPEG body, x-fig-kind: ai|phone)     → { fig_v }
 //   POST   /api/members/:id/ai           (JPEG selfie)                         → the AI figurine image itself
 //   GET    /api/fig/:memberId?v=&code=                                          → the stored figurine JPEG
+//   GET    /api/plan                                                           → { items } (seeded with the default plan once)
+//   POST   /api/plan                     { day, t, title, note, place, who, icon, opt } → { item }
+//   PUT    /api/plan/:id                 same fields                           → { item }
+//   DELETE /api/plan/:id                                                       → { ok }
+//   POST   /api/plan/order               { day, ids:[...] }                    → { ok }   (reorder, or move into a day)
+//   GET    /api/chat?after=<id>                                                → { messages }
+//   POST   /api/chat                     { member_id, text }                   → { message }
+// Plan and chat writes need a family token; x-member-id (optional) names who did it in the chat notes.
 
 const MAX_FAMILIES = 12;
 const MAX_MEMBERS = 8;
@@ -57,6 +65,13 @@ async function route(req, env, url) {
   if (a === "members" && id && b === "fig" && M === "PUT") return putFig(req, env, id);
   if (a === "members" && id && b === "ai" && M === "POST") return aiFig(req, env, id);
   if (a === "fig" && id && M === "GET") return getFig(env, id);
+  if (a === "plan" && !id && M === "GET") return json({ items: await listPlan(env) });
+  if (a === "plan" && !id && M === "POST") return addPlan(req, env);
+  if (a === "plan" && id === "order" && M === "POST") return orderPlan(req, env);
+  if (a === "plan" && id && M === "PUT") return updatePlan(req, env, id);
+  if (a === "plan" && id && M === "DELETE") return deletePlan(req, env, id);
+  if (a === "chat" && !id && M === "GET") return listChat(env, url);
+  if (a === "chat" && !id && M === "POST") return postChat(req, env);
   return json({ error: "notfound", message: "Not found" }, 404);
 }
 
@@ -256,4 +271,154 @@ async function generateFigurine(env, photo, prompt) {
     return { error: "google", message: msg };
   }
   return last;
+}
+
+/* ---------------- shared plan ---------------- */
+const DAY_NAMES = ["Thu, Dec 24", "Fri, Dec 25", "Sat, Dec 26", "Sun, Dec 27", "Mon, Dec 28"];
+const PLACES = ["palace", "santafe", "offsite"];
+const WHO = ["", "kids", "slides", "adult"];
+// [day, time, icon, title, note, place, who, optional]
+const DEFAULT_PLAN = [
+  [0, "Midday", "plane-landing", "Land at Los Cabos (SJD)", "The resort is about 40 km from the airport, roughly 45 minutes by road.", "offsite", "", 0],
+  [0, "3:00 PM", "key-round", "Check in at Palace Cabo", "Check-in opens at 3 PM. Have a photo ID and a card ready for the front desk.", "palace", "", 0],
+  [0, "4:00 PM", "waves", "First swim", "Two pools have swim-up bars, and the whirlpools are heated in winter.", "palace", "", 0],
+  [0, "Evening", "sparkles", "Christmas Eve dinner", "Dinner is at Palace Cabo. Ask at check-in about the holiday program.", "palace", "", 0],
+  [1, "Morning", "coffee", "Breakfast at Mar de Cortés", "Buffet with live cooking stations.", "palace", "", 0],
+  [1, "10:00 AM", "droplets", "Splash Water World", "Five slides. It opens 6 days a week, so check today is one of them.", "santafe", "slides", 0],
+  [1, "10:00 AM", "blocks", "RiuLand kids club", "Crafts, games and sports for the younger crew.", "santafe", "kids", 0],
+  [1, "1:00 PM", "utensils", "Lunch by the pool", "La Misión (Mexican) or Torote (grill) at Santa Fe.", "santafe", "", 0],
+  [1, "Evening", "utensils", "À la carte dinner", "Krystal, Misaki, Bombay, El Médano or San José. Long pants for dinner.", "palace", "", 0],
+  [2, "Morning", "ship", "Boat to El Arco", "Land's End and Lover's Beach are a short boat ride away. Booked separately.", "offsite", "", 1],
+  [2, "Morning", "fish", "Whale watching", "Whale season in Cabo starts in December. Booked separately.", "offsite", "", 1],
+  [2, "Afternoon", "sun", "Médano Beach", "Calm, swimmable water right in front of the hotel. Water sports cost extra.", "palace", "", 0],
+  [2, "Night", "party-popper", "Riu Pool Party", "Themed party at Santa Fe, 4 nights a week. Check which nights.", "santafe", "adult", 0],
+  [3, "9:00 AM", "dumbbell", "RiuFit or pickleball", "Daily group workouts and 3 pickleball courts at Santa Fe.", "santafe", "", 0],
+  [3, "Midday", "flower-2", "Renova Spa", "Massages and treatments. Extra cost.", "palace", "", 1],
+  [3, "Sunset", "camera", "All 5 families, one photo", "Médano Beach looks out toward the Arch. Golden hour is the shot.", "palace", "", 0],
+  [3, "Evening", "utensils", "Farewell dinner", "Last à la carte night at Palace Cabo.", "palace", "", 0],
+  [4, "Morning", "coffee", "Last breakfast", "Mar de Cortés.", "palace", "", 0],
+  [4, "11:00 AM", "bed-double", "Check out", "Ask the front desk to hold bags. Lounge 24 stays open for snacks.", "palace", "", 0],
+  [4, "Afternoon", "plane-takeoff", "Head to SJD", "About 45 minutes to the airport. Aim to arrive 3 hours before an international flight.", "offsite", "", 0],
+];
+const PLAN_COLS = "id, day, pos, t, title, note, place, who, icon, opt";
+const toItem = (r) => ({ ...r, opt: !!r.opt });
+
+async function listPlan(env) {
+  const first = await env.DB.prepare("INSERT INTO meta (k, v) VALUES ('plan_seeded', '1') ON CONFLICT(k) DO NOTHING RETURNING k").first();
+  if (first) {
+    const now = Date.now(), per = {};
+    await env.DB.batch(DEFAULT_PLAN.map(([day, t, icon, title, note, place, who, opt]) => {
+      per[day] = (per[day] ?? -1) + 1;
+      return env.DB.prepare(`INSERT INTO plan_items (${PLAN_COLS}, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`).bind(rid(10), day, per[day], t, title, note, place, who, icon, opt, now);
+    }));
+  }
+  return (await env.DB.prepare(`SELECT ${PLAN_COLS} FROM plan_items ORDER BY day, pos`).all()).results.map(toItem);
+}
+
+async function familyOf(req, env) {
+  const token = req.headers.get("x-family-token") || "";
+  const fam = token && await env.DB.prepare("SELECT id, name FROM families WHERE token = ?").bind(token).first();
+  if (!fam) return { res: json({ error: "forbidden", message: "Set up your family from the invite link first." }, 403) };
+  const mid = req.headers.get("x-member-id") || "";
+  const mem = mid && await env.DB.prepare("SELECT id, name FROM members WHERE id = ? AND family_id = ?").bind(mid, fam.id).first();
+  return { fam, actor: mem ? mem.name : `The ${fam.name} family`, memberId: mem ? mem.id : null };
+}
+
+function readItem(b, partial) {
+  if (!b) return { error: "Send the plan item as JSON." };
+  const day = parseInt(b.day, 10);
+  if (!(day >= 0 && day <= 4)) return { error: "Pick a day between Dec 24 and Dec 28." };
+  const title = clean(b.title, 60);
+  if (!title) return { error: "Give it a name." };
+  const icon = /^[a-z0-9-]{2,24}$/.test(b.icon || "") ? b.icon : "sparkles";
+  return {
+    day, title, icon,
+    t: clean(b.t, 16), note: clean(b.note, 220),
+    place: PLACES.includes(b.place) ? b.place : "palace",
+    who: WHO.includes(b.who || "") ? (b.who || "") : "",
+    opt: b.opt ? 1 : 0,
+  };
+}
+
+async function note(env, f, text) {
+  await env.DB.prepare("INSERT INTO messages (family_id, member_id, name, fam, kind, text, created_at) VALUES (?, ?, ?, ?, 'plan', ?, ?)")
+    .bind(f.fam.id, f.memberId, f.actor, f.fam.name, text, Date.now()).run();
+}
+
+async function addPlan(req, env) {
+  const f = await familyOf(req, env); if (f.res) return f.res;
+  const it = readItem(await req.json().catch(() => null));
+  if (it.error) return json({ error: "invalid", message: it.error }, 400);
+  const count = await env.DB.prepare("SELECT COUNT(*) AS n FROM plan_items").first("n");
+  if (count >= 200) return json({ error: "full", message: "The plan is full. Remove something first." }, 409);
+  const pos = (await env.DB.prepare("SELECT COALESCE(MAX(pos), -1) + 1 AS p FROM plan_items WHERE day = ?").bind(it.day).first("p"));
+  const id = rid(10);
+  await env.DB.prepare(`INSERT INTO plan_items (${PLAN_COLS}, family_id, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`)
+    .bind(id, it.day, pos, it.t, it.title, it.note, it.place, it.who, it.icon, it.opt, f.fam.id, Date.now()).run();
+  await note(env, f, `${f.actor} added “${it.title}” to ${DAY_NAMES[it.day]}`);
+  return json({ item: toItem({ id, pos, ...it }) });
+}
+
+async function updatePlan(req, env, id) {
+  const f = await familyOf(req, env); if (f.res) return f.res;
+  const old = await env.DB.prepare(`SELECT ${PLAN_COLS} FROM plan_items WHERE id = ?`).bind(id).first();
+  if (!old) return json({ error: "gone", message: "Someone removed that from the plan." }, 404);
+  const it = readItem(await req.json().catch(() => null));
+  if (it.error) return json({ error: "invalid", message: it.error }, 400);
+  let pos = old.pos;
+  if (it.day !== old.day) pos = await env.DB.prepare("SELECT COALESCE(MAX(pos), -1) + 1 AS p FROM plan_items WHERE day = ?").bind(it.day).first("p");
+  await env.DB.prepare("UPDATE plan_items SET day = ?, pos = ?, t = ?, title = ?, note = ?, place = ?, who = ?, icon = ?, opt = ?, updated_at = ? WHERE id = ?")
+    .bind(it.day, pos, it.t, it.title, it.note, it.place, it.who, it.icon, it.opt, Date.now(), id).run();
+  if (it.day !== old.day) await note(env, f, `${f.actor} moved “${it.title}” to ${DAY_NAMES[it.day]}`);
+  else if (it.t !== old.t) await note(env, f, `${f.actor} changed “${it.title}” to ${it.t || "no set time"} on ${DAY_NAMES[it.day]}`);
+  return json({ item: toItem({ id, pos, ...it }) });
+}
+
+async function deletePlan(req, env, id) {
+  const f = await familyOf(req, env); if (f.res) return f.res;
+  const old = await env.DB.prepare("SELECT title, day FROM plan_items WHERE id = ?").bind(id).first();
+  if (!old) return json({ ok: true });
+  await env.DB.prepare("DELETE FROM plan_items WHERE id = ?").bind(id).run();
+  await note(env, f, `${f.actor} removed “${old.title}” from ${DAY_NAMES[old.day]}`);
+  return json({ ok: true });
+}
+
+async function orderPlan(req, env) {
+  const f = await familyOf(req, env); if (f.res) return f.res;
+  const b = await req.json().catch(() => null);
+  const day = parseInt(b?.day, 10);
+  const ids = Array.isArray(b?.ids) ? b.ids.filter((x) => typeof x === "string").slice(0, 100) : [];
+  if (!(day >= 0 && day <= 4) || !ids.length) return json({ error: "invalid", message: "Nothing to reorder." }, 400);
+  const rows = (await env.DB.prepare(`SELECT id, day, title FROM plan_items WHERE id IN (${ids.map(() => "?").join(",")})`).bind(...ids).all()).results;
+  const known = new Map(rows.map((r) => [r.id, r]));
+  const now = Date.now(), stmts = [];
+  ids.filter((x) => known.has(x)).forEach((x, i) => stmts.push(env.DB.prepare("UPDATE plan_items SET day = ?, pos = ?, updated_at = ? WHERE id = ?").bind(day, i, now, x)));
+  if (stmts.length) await env.DB.batch(stmts);
+  for (const r of rows) if (r.day !== day) await note(env, f, `${f.actor} moved “${r.title}” to ${DAY_NAMES[day]}`);
+  return json({ ok: true });
+}
+
+/* ---------------- chat ---------------- */
+const MSG_COLS = "id, member_id, name, fam, kind, text, created_at";
+async function listChat(env, url) {
+  const after = parseInt(url.searchParams.get("after") || "0", 10) || 0;
+  const rows = after > 0
+    ? (await env.DB.prepare(`SELECT ${MSG_COLS} FROM messages WHERE id > ? ORDER BY id LIMIT 200`).bind(after).all()).results
+    : (await env.DB.prepare(`SELECT ${MSG_COLS} FROM (SELECT ${MSG_COLS} FROM messages ORDER BY id DESC LIMIT 150) ORDER BY id`).all()).results;
+  return json({ messages: rows });
+}
+
+async function postChat(req, env) {
+  const token = req.headers.get("x-family-token") || "";
+  const fam = token && await env.DB.prepare("SELECT id, name FROM families WHERE token = ?").bind(token).first();
+  if (!fam) return json({ error: "forbidden", message: "Set up your family from the invite link first." }, 403);
+  const b = await req.json().catch(() => null);
+  const mem = b && typeof b.member_id === "string" && await env.DB.prepare("SELECT id, name FROM members WHERE id = ? AND family_id = ?").bind(b.member_id, fam.id).first();
+  if (!mem) return json({ error: "who", message: "Pick who's chatting on this phone." }, 400);
+  const text = String(b.text ?? "").replace(/[\u0000-\u0008\u000b-\u001f]/g, "").trim().slice(0, 1000);
+  if (!text) return json({ error: "empty", message: "Type a message first." }, 400);
+  const now = Date.now();
+  const id = await env.DB.prepare("INSERT INTO messages (family_id, member_id, name, fam, kind, text, created_at) VALUES (?, ?, ?, ?, 'text', ?, ?) RETURNING id")
+    .bind(fam.id, mem.id, mem.name, fam.name, text, now).first("id");
+  return json({ message: { id, member_id: mem.id, name: mem.name, fam: fam.name, kind: "text", text, created_at: now } });
 }
