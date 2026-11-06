@@ -1,0 +1,14 @@
+{
+  // Cabo Crew on Cloudflare: static app in ./public, trip API in src/worker.js, data in D1.
+  "name": "cabo-crew",
+  "main": "src/worker.js",
+  "compatibility_date": "2025-09-01",
+  "assets": { "directory": "./public", "binding": "ASSETS" },
+  "d1_databases": [
+    { "binding": "DB", "database_name": "cabo-crew", "database_id": "6b6bf202-ed20-40dd-8e2a-ad465ee5e174" }
+  ],
+  // The trip code travels in the invite link (?code=...). Change it here to lock out an old link.
+  // GEMINI_API_KEY is a secret: set it in Cloudflare (Worker → Settings → Variables and Secrets) to switch on AI figurines.
+  "vars": { "TRIP_CODE": "cabo-fs84hcpq" },
+  "observability": { "enabled": true }
+}

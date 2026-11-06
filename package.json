@@ -1,0 +1,10 @@
+{
+  "name": "cabo-crew",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Cabo Crew — group trip app for 5 families at Riu Palace Cabo San Lucas, Dec 24–28 (Cloudflare Workers + D1)",
+  "scripts": {
+    "deploy": "wrangler deploy"
+  }
+}
