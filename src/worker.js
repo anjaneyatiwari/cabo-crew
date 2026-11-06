@@ -20,6 +20,9 @@
 //   GET    /api/chat?after=<id>                                                → { messages }
 //   POST   /api/chat                     { member_id, text }                   → { message }
 //   POST   /api/visit                    { device }                            → { ok }   (who has opened the invite link)
+//   PUT    /api/members/:id/media/:kind  (JPEG; kind photo|raw)                → { v }    original selfie / plain AI figurine
+//   GET    /api/album                    (organizer only)                      → { families: [...members with fig_v, photo_v, raw_v] }
+//   GET    /api/media/:memberId/:kind    (organizer only)                      → the JPEG
 // Plan and chat writes need a family token; x-member-id (optional) names who did it in the chat notes.
 
 const MAX_FAMILIES = 12;
@@ -81,7 +84,7 @@ async function route(req, env, url) {
   if (!env.TRIP_CODE || code !== env.TRIP_CODE) return json({ error: "locked", message: "Open Cabo Crew from your invite link." }, 401);
   const [, a, id, b] = url.pathname.split("/").filter(Boolean);
   const M = req.method;
-  if (a === "ping" && M === "GET") return json({ ok: true, ai: !!geminiKey(env) });
+  if (a === "ping" && M === "GET") return json({ ok: true, ai: !!geminiKey(env), owner: await isOwner(req, env) });
   if (a === "families" && !id && M === "GET") return json({ families: await listFamilies(env) });
   if (a === "families" && !id && M === "POST") return createFamily(req, env);
   if (a === "families" && id && M === "PUT") return updateFamily(req, env, id);
@@ -97,6 +100,9 @@ async function route(req, env, url) {
   if (a === "chat" && !id && M === "GET") return listChat(env, url);
   if (a === "chat" && !id && M === "POST") return postChat(req, env);
   if (a === "visit" && !id && M === "POST") return visit(req, env);
+  if (a === "members" && id && b === "media" && M === "PUT") return putMedia(req, env, id, url.pathname.split("/").filter(Boolean)[4]);
+  if (a === "album" && !id && M === "GET") return album(req, env);
+  if (a === "media" && id && b && M === "GET") return getMedia(req, env, id, b);
   return json({ error: "notfound", message: "Not found" }, 404);
 }
 
@@ -164,7 +170,7 @@ async function updateFamily(req, env, id) {
       stmts.push(env.DB.prepare("INSERT INTO members (id, family_id, name, age, grp, pos) VALUES (?, ?, ?, 0, ?, ?)").bind(rid(10), id, m.name, m.grp, i));
     }
   });
-  for (const old of existing) if (!keep.has(old)) stmts.push(env.DB.prepare("DELETE FROM members WHERE id = ?").bind(old));
+  for (const old of existing) if (!keep.has(old)) stmts.push(env.DB.prepare("DELETE FROM members WHERE id = ?").bind(old), env.DB.prepare("DELETE FROM media WHERE member_id = ?").bind(old));
   await env.DB.batch(stmts);
   const [family] = await listFamilies(env, id);
   return json({ family });
@@ -174,6 +180,7 @@ async function deleteFamily(req, env, id) {
   const denied = await auth(req, env, id);
   if (denied) return denied;
   await env.DB.batch([
+    env.DB.prepare("DELETE FROM media WHERE member_id IN (SELECT id FROM members WHERE family_id = ?)").bind(id),
     env.DB.prepare("DELETE FROM members WHERE family_id = ?").bind(id),
     env.DB.prepare("DELETE FROM families WHERE id = ?").bind(id),
   ]);
@@ -491,4 +498,40 @@ async function visit(req, env) {
     ON CONFLICT(device) DO UPDATE SET last_seen = excluded.last_seen, opens = opens + 1, family_id = COALESCE(excluded.family_id, visits.family_id), place = excluded.place`)
     .bind(device, fam, now, now, deviceKind(req.headers.get("user-agent")), place).run();
   return json({ ok: true });
+}
+
+/* ---------------- trip album: originals + figurines, for the organizer only ---------------- */
+const MEDIA_KINDS = ["photo", "raw"];
+const MEDIA_MAX = 1800 * 1024;
+async function isOwner(req, env) {
+  const token = req.headers.get("x-family-token") || "";
+  if (!token) return false;
+  const owner = await env.DB.prepare("SELECT v FROM meta WHERE k = 'owner_family'").first("v");
+  const fam = await env.DB.prepare("SELECT id FROM families WHERE token = ?").bind(token).first("id");
+  return !!fam && fam === owner;
+}
+async function putMedia(req, env, memberId, kind) {
+  if (!MEDIA_KINDS.includes(kind)) return json({ error: "kind", message: "Unknown photo type." }, 400);
+  const { m, res } = await memberOf(req, env, memberId);
+  if (res) return res;
+  const buf = await req.arrayBuffer();
+  if (buf.byteLength > MEDIA_MAX) return json({ error: "toobig", message: "That photo is too big." }, 413);
+  if (!isJpeg(new Uint8Array(buf))) return json({ error: "notjpeg", message: "That isn't a JPEG." }, 400);
+  const v = await env.DB.prepare(`INSERT INTO media (member_id, kind, mime, data, v, created_at) VALUES (?, ?, 'image/jpeg', ?, 1, ?)
+    ON CONFLICT(member_id, kind) DO UPDATE SET data = excluded.data, v = media.v + 1, created_at = excluded.created_at RETURNING v`).bind(m.id, kind, buf, Date.now()).first("v");
+  return json({ v });
+}
+async function album(req, env) {
+  if (!(await isOwner(req, env))) return json({ error: "forbidden", message: "Only the trip organizer can open the album." }, 403);
+  const fams = await listFamilies(env);
+  const media = (await env.DB.prepare("SELECT member_id, kind, v FROM media").all()).results;
+  const vOf = (id, k) => (media.find((x) => x.member_id === id && x.kind === k) || {}).v || 0;
+  return json({ families: fams.map((f) => ({ id: f.id, name: f.name, members: f.members.map((mm) => ({ ...mm, photo_v: vOf(mm.id, "photo"), raw_v: vOf(mm.id, "raw") })) })) });
+}
+async function getMedia(req, env, memberId, kind) {
+  if (!MEDIA_KINDS.includes(kind)) return json({ error: "kind" }, 400);
+  if (!(await isOwner(req, env))) return json({ error: "forbidden", message: "Only the trip organizer can open the album." }, 403);
+  const row = await env.DB.prepare("SELECT data, mime FROM media WHERE member_id = ? AND kind = ?").bind(memberId, kind).first();
+  if (!row) return json({ error: "nomedia" }, 404);
+  return new Response(new Uint8Array(row.data), { headers: { "content-type": row.mime, "cache-control": "private, no-store" } });
 }
