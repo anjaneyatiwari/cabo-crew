@@ -10,5 +10,7 @@
   // The trip code travels in the invite link (?code=...). Change it here to lock out an old link.
   // GEMINI_API_KEY is a secret: set it in Cloudflare (Worker → Settings → Variables and Secrets) to switch on AI figurines.
   "vars": { "TRIP_CODE": "cabo-fs84hcpq" },
+  // Keep variables set in the Cloudflare dashboard when a push redeploys.
+  "keep_vars": true,
   "observability": { "enabled": true }
 }

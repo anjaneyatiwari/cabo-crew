@@ -1006,7 +1006,7 @@ function go(name) {
   if (name !== 'welcome') stopVideo();
   if (name === 'family') renderFamilyForm();
   if (name === 'welcome') renderWelcome();
-  if (name === 'booth') renderBooth();
+  if (name === 'booth') { renderBooth(); refreshAI(); }
   if (name === 'app') { renderAll(); setTab(S.tab, true); loadPlan().then(rerenderPlan); if (shared()) pollChat().then(() => { if (S.tab === 'chat') { renderChat(); icons(); } }); }
 }
 function setTab(t, force) {
@@ -1090,6 +1090,10 @@ function wireThumb() {
 }
 
 /* ---------- Booth ---------- */
+async function refreshAI() {
+  if (API.mode !== 'server') return;
+  try { const r = await fetch('/api/ping', { headers: { 'x-trip-code': API.code } }); const d = await r.json(); if (API.ai !== !!d.ai) { API.ai = !!d.ai; if (S.screen === 'booth') renderBooth(); } } catch (e) {}
+}
 let shootId = null;
 const JUST = new Set();
 function shootBtns(m, real, big) {
@@ -1106,9 +1110,9 @@ function renderBooth() {
     </div>`;
   }).join('');
   JUST.clear();
-  $('#boothNote span').textContent = API.mode === 'server' && API.ai && !f.example
-    ? 'AI sculpts each figurine from the photo. It takes about 30 seconds. Photos are only used to make the figurine.'
-    : 'In this preview the figurine is made on your phone.';
+  $('#boothNote span').textContent = API.mode !== 'server' || f.example ? 'In this preview the figurine is made on your phone.'
+    : API.ai ? 'AI figurines are on. Gemini sculpts each one from the photo in about 30 seconds. Photos are only used to make the figurine.'
+    : 'AI figurines are off right now, so figurines are made on the phone. Retake once AI is switched on to get the AI version.';
   icons();
 }
 async function shoot(file) {
