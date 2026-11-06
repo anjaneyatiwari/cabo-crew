@@ -39,6 +39,9 @@ const isJpeg = (b) => b.length > 3 && b[0] === 0xff && b[1] === 0xd8 && b[2] ===
 function toB64(bytes) { let s = ""; for (let i = 0; i < bytes.length; i += 0x8000) s += String.fromCharCode.apply(null, bytes.subarray(i, i + 0x8000)); return btoa(s); }
 function fromB64(b64) { const bin = atob(b64); const out = new Uint8Array(bin.length); for (let i = 0; i < bin.length; i++) out[i] = bin.charCodeAt(i); return out; }
 
+// The Gemini key secret, whatever capitalisation it was saved with (GEMINI_API_KEY, Gemini_Api_key, ...).
+const geminiKey = (env) => env.GEMINI_API_KEY || Object.entries(env).find(([k, v]) => k.toUpperCase() === "GEMINI_API_KEY" && typeof v === "string")?.[1] || "";
+
 export default {
   async fetch(req, env) {
     const url = new URL(req.url);
@@ -57,7 +60,7 @@ async function route(req, env, url) {
   if (!env.TRIP_CODE || code !== env.TRIP_CODE) return json({ error: "locked", message: "Open Cabo Crew from your invite link." }, 401);
   const [, a, id, b] = url.pathname.split("/").filter(Boolean);
   const M = req.method;
-  if (a === "ping" && M === "GET") return json({ ok: true, ai: !!env.GEMINI_API_KEY });
+  if (a === "ping" && M === "GET") return json({ ok: true, ai: !!geminiKey(env) });
   if (a === "families" && !id && M === "GET") return json({ families: await listFamilies(env) });
   if (a === "families" && !id && M === "POST") return createFamily(req, env);
   if (a === "families" && id && M === "PUT") return updateFamily(req, env, id);
@@ -184,7 +187,7 @@ async function getFig(env, memberId) {
 async function aiFig(req, env, memberId) {
   const { m, res } = await memberOf(req, env, memberId);
   if (res) return res;
-  if (!env.GEMINI_API_KEY) return json({ error: "nokey", message: "AI figurines aren't switched on yet." }, 503);
+  if (!geminiKey(env)) return json({ error: "nokey", message: "AI figurines aren't switched on yet." }, 503);
   const photo = new Uint8Array(await req.arrayBuffer());
   if (photo.length > PHOTO_MAX) return json({ error: "toobig", message: "That photo is too big. Try again." }, 413);
   if (!isJpeg(photo)) return json({ error: "notjpeg", message: "That doesn't look like a photo. Try another one." }, 400);
@@ -241,7 +244,7 @@ async function generateFigurine(env, photo, prompt) {
       res = await fetch(`${base}/v1beta/models/${model}:generateContent`, {
         method: "POST",
         signal: ctl.signal,
-        headers: { "content-type": "application/json", "x-goog-api-key": env.GEMINI_API_KEY },
+        headers: { "content-type": "application/json", "x-goog-api-key": geminiKey(env) },
         body: JSON.stringify({
           contents: [{ role: "user", parts: [{ inlineData: { mimeType: "image/jpeg", data } }, { text: prompt }] }],
           generationConfig: { responseModalities: ["IMAGE"], imageConfig: { aspectRatio: "3:4" } },
