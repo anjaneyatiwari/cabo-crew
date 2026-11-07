@@ -25,7 +25,7 @@
 //   GET    /api/media/:memberId/:kind    (organizer only)                      → the JPEG
 // Plan and chat writes need a family token; x-member-id (optional) names who did it in the chat notes.
 
-const MAX_FAMILIES = 12;
+const MAX_FAMILIES = 30;
 const MAX_MEMBERS = 8;
 const FIG_MAX = 900 * 1024;      // framed figurine card, ~720x960 JPEG
 const PHOTO_MAX = 700 * 1024;    // selfie sent for the AI figurine
@@ -35,7 +35,16 @@ const badModels = new Set();
 const GROUPS = ["adult", "teen", "kid"];
 
 const json = (data, status = 200) =>
-  new Response(JSON.stringify(data), { status, headers: { "content-type": "application/json; charset=utf-8", "cache-control": "no-store" } });
+  new Response(JSON.stringify(data), { status, headers: { "content-type": "application/json; charset=utf-8", "cache-control": "no-store", "x-content-type-options": "nosniff" } });
+
+// Simple fixed-window rate limits kept in D1 (table rate). Returns true when the call is allowed.
+async function allow(env, key, max, windowMs) {
+  const k = `${key}:${Math.floor(Date.now() / windowMs)}`;
+  const n = await env.DB.prepare("INSERT INTO rate (k, n) VALUES (?, 1) ON CONFLICT(k) DO UPDATE SET n = n + 1 RETURNING n").bind(k).first("n");
+  return n <= max;
+}
+const slowDown = (what) => json({ error: "slow", message: `That's a lot of ${what} in a short time. Wait a few minutes and try again.` }, 429);
+const ownerFamily = (env) => env.DB.prepare("SELECT v FROM meta WHERE k = 'owner_family'").first("v");
 const ALPHA = "abcdefghjkmnpqrstuvwxyz23456789";
 const rid = (n = 10) => [...crypto.getRandomValues(new Uint8Array(n))].map((b) => ALPHA[b % ALPHA.length]).join("");
 const clean = (s, max) => String(s ?? "").replace(/[\u0000-\u001f<>]/g, "").replace(/\s+/g, " ").trim().slice(0, max);
@@ -53,7 +62,19 @@ const LOCKED_HTML = `<!DOCTYPE html><html lang="en"><head><meta charset="utf-8">
 <style>html,body{height:100%;margin:0}body{display:grid;place-items:center;background:#0E1317;color:#ECF0F2;font:16px/1.5 system-ui,-apple-system,"Segoe UI",sans-serif;padding:24px;text-align:center}h1{font-size:22px;margin:0 0 8px}p{color:#98A3AC;margin:0;max-width:30ch}</style></head>
 <body><div><h1>This app is private</h1><p>Open it from the invite link you were sent.</p></div>
 <script>try{var c=localStorage.getItem("cabocrew.code");if(c&&!/[?&]code=/.test(location.search))location.replace("/?code="+encodeURIComponent(c));}catch(e){}</script></body></html>`;
-const PRIVATE_HEADERS = { "x-robots-tag": "noindex, nofollow", "referrer-policy": "no-referrer", "cache-control": "no-store" };
+const PRIVATE_HEADERS = { "x-robots-tag": "noindex, nofollow", "referrer-policy": "no-referrer", "cache-control": "no-store", "x-content-type-options": "nosniff", "x-frame-options": "DENY", "cross-origin-opener-policy": "same-origin", "permissions-policy": "geolocation=(), microphone=(), camera=(), payment=()" };
+// Only the app's own script and the pinned CDNs can run; the page can't be framed by another site.
+const APP_CSP = [
+  "default-src 'self'",
+  "script-src 'self' https://cdn.jsdelivr.net https://cdnjs.cloudflare.com",
+  "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
+  "font-src https://fonts.gstatic.com",
+  "img-src 'self' data: blob: https://i.ytimg.com",
+  "connect-src 'self'",
+  "frame-src https://www.youtube-nocookie.com",
+  "worker-src 'self' blob:",
+  "object-src 'none'", "base-uri 'none'", "form-action 'self'", "frame-ancestors 'none'",
+].join("; ");
 
 export default {
   async fetch(req, env) {
@@ -67,6 +88,7 @@ export default {
       const res = await env.ASSETS.fetch(req);
       const out = new Response(res.body, res);
       for (const [k, v] of Object.entries(PRIVATE_HEADERS)) out.headers.set(k, v);
+      out.headers.set("content-security-policy", APP_CSP);
       if (code === env.TRIP_CODE) out.headers.append("set-cookie", `cc=${env.TRIP_CODE}; Path=/; Max-Age=15552000; HttpOnly; Secure; SameSite=Lax`);
       return out;
     }
@@ -99,6 +121,7 @@ async function route(req, env, url) {
   if (a === "plan" && id && M === "DELETE") return deletePlan(req, env, id);
   if (a === "chat" && !id && M === "GET") return listChat(env, url);
   if (a === "chat" && !id && M === "POST") return postChat(req, env);
+  if (a === "chat" && id && M === "DELETE") return deleteChat(req, env, id);
   if (a === "visit" && !id && M === "POST") return visit(req, env);
   if (a === "members" && id && b === "media" && M === "PUT") return putMedia(req, env, id, url.pathname.split("/").filter(Boolean)[4]);
   if (a === "album" && !id && M === "GET") return album(req, env);
@@ -144,6 +167,7 @@ async function createFamily(req, env) {
   if (body.error) return json({ error: "invalid", message: body.error }, 400);
   const count = await env.DB.prepare("SELECT COUNT(*) AS n FROM families").first("n");
   if (count >= MAX_FAMILIES) return json({ error: "full", message: "The trip is full." }, 409);
+  if (!(await allow(env, "fam:" + (req.headers.get("cf-connecting-ip") || "?"), 5, 864e5))) return slowDown("new families");
   const id = rid(10), token = rid(24), now = Date.now();
   const stmts = [env.DB.prepare("INSERT INTO families (id, name, token, created_at, updated_at) VALUES (?, ?, ?, ?, ?)").bind(id, body.name, token, now, now)];
   body.members.forEach((m, i) => stmts.push(env.DB.prepare("INSERT INTO members (id, family_id, name, age, grp, pos) VALUES (?, ?, ?, 0, ?, ?)").bind(rid(10), id, m.name, m.grp, i)));
@@ -157,6 +181,7 @@ async function createFamily(req, env) {
 async function updateFamily(req, env, id) {
   const denied = await auth(req, env, id);
   if (denied) return denied;
+  if (!(await allow(env, "famedit:" + id, 30, 3600e3))) return slowDown("changes");
   const body = await readBody(req);
   if (body.error) return json({ error: "invalid", message: body.error }, 400);
   const existing = new Set((await env.DB.prepare("SELECT id FROM members WHERE family_id = ?").bind(id).all()).results.map((r) => r.id));
@@ -178,7 +203,7 @@ async function updateFamily(req, env, id) {
 
 async function deleteFamily(req, env, id) {
   const denied = await auth(req, env, id);
-  if (denied) return denied;
+  if (denied && !(await isOwner(req, env))) return denied;
   await env.DB.batch([
     env.DB.prepare("DELETE FROM media WHERE member_id IN (SELECT id FROM members WHERE family_id = ?)").bind(id),
     env.DB.prepare("DELETE FROM members WHERE family_id = ?").bind(id),
@@ -198,6 +223,7 @@ async function memberOf(req, env, memberId) {
 async function putFig(req, env, memberId) {
   const { m, res } = await memberOf(req, env, memberId);
   if (res) return res;
+  if (!(await allow(env, "up:" + m.family_id, 60, 3600e3))) return slowDown("photos");
   const buf = await req.arrayBuffer();
   if (buf.byteLength > FIG_MAX) return json({ error: "toobig", message: "That figurine is too big." }, 413);
   if (!isJpeg(new Uint8Array(buf))) return json({ error: "notjpeg", message: "That isn't a JPEG." }, 400);
@@ -222,6 +248,7 @@ async function aiFig(req, env, memberId) {
   const photo = new Uint8Array(await req.arrayBuffer());
   if (photo.length > PHOTO_MAX) return json({ error: "toobig", message: "That photo is too big. Try again." }, 413);
   if (!isJpeg(photo)) return json({ error: "notjpeg", message: "That doesn't look like a photo. Try another one." }, 400);
+  if (!(await allow(env, "ai:" + m.family_id, 12, 864e5))) return json({ error: "cap", message: "Your family has made today's 12 AI figurines. Try again tomorrow." }, 429);
   const day = new Date().toISOString().slice(0, 10);
   const used = await env.DB.prepare("INSERT INTO budget (day, n) VALUES (?, 1) ON CONFLICT(day) DO UPDATE SET n = n + 1 RETURNING n").bind(day).first("n");
   if (used > AI_DAILY_CAP) return json({ error: "cap", message: "Today's AI figurines have all been made. Try again tomorrow." }, 429);
@@ -352,7 +379,7 @@ const DEFAULT_PLAN = [
   [4, "11:00 AM", "bed-double", "Check out", "Ask the front desk to hold bags. Lounge 24 stays open for snacks.", "palace", "", 0],
   [4, "Afternoon", "plane-takeoff", "Head to SJD", "About 45 minutes to the airport. Aim to arrive 3 hours before an international flight.", "offsite", "", 0],
 ];
-const PLAN_COLS = "id, day, pos, t, title, note, place, who, icon, opt";
+const PLAN_COLS = "id, day, pos, t, title, note, place, who, icon, opt, family_id";
 const toItem = (r) => ({ ...r, opt: !!r.opt });
 
 async function listPlan(env) {
@@ -361,7 +388,7 @@ async function listPlan(env) {
     const now = Date.now(), per = {};
     await env.DB.batch(DEFAULT_PLAN.map(([day, t, icon, title, note, place, who, opt]) => {
       per[day] = (per[day] ?? -1) + 1;
-      return env.DB.prepare(`INSERT INTO plan_items (${PLAN_COLS}, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`).bind(rid(10), day, per[day], t, title, note, place, who, icon, opt, now);
+      return env.DB.prepare(`INSERT INTO plan_items (${PLAN_COLS}, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NULL, ?)`).bind(rid(10), day, per[day], t, title, note, place, who, icon, opt, now);
     }));
   }
   return (await env.DB.prepare(`SELECT ${PLAN_COLS} FROM plan_items ORDER BY day, pos`).all()).results.map(toItem);
@@ -373,7 +400,9 @@ async function familyOf(req, env) {
   if (!fam) return { res: json({ error: "forbidden", message: "Set up your family from the invite link first." }, 403) };
   const mid = req.headers.get("x-member-id") || "";
   const mem = mid && await env.DB.prepare("SELECT id, name FROM members WHERE id = ? AND family_id = ?").bind(mid, fam.id).first();
-  return { fam, actor: mem ? mem.name : `The ${fam.name} family`, memberId: mem ? mem.id : null };
+  const owner = fam.id === await ownerFamily(env);
+  if (!(await allow(env, "plan:" + fam.id, 80, 3600e3))) return { res: slowDown("plan changes") };
+  return { fam, owner, actor: mem ? mem.name : `The ${fam.name} family`, memberId: mem ? mem.id : null };
 }
 
 function readItem(b, partial) {
@@ -405,16 +434,17 @@ async function addPlan(req, env) {
   if (count >= 200) return json({ error: "full", message: "The plan is full. Remove something first." }, 409);
   const pos = (await env.DB.prepare("SELECT COALESCE(MAX(pos), -1) + 1 AS p FROM plan_items WHERE day = ?").bind(it.day).first("p"));
   const id = rid(10);
-  await env.DB.prepare(`INSERT INTO plan_items (${PLAN_COLS}, family_id, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`)
+  await env.DB.prepare(`INSERT INTO plan_items (${PLAN_COLS}, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`)
     .bind(id, it.day, pos, it.t, it.title, it.note, it.place, it.who, it.icon, it.opt, f.fam.id, Date.now()).run();
   await note(env, f, `${f.actor} added “${it.title}” to ${DAY_NAMES[it.day]}`);
-  return json({ item: toItem({ id, pos, ...it }) });
+  return json({ item: toItem({ id, pos, ...it, family_id: f.fam.id }) });
 }
 
 async function updatePlan(req, env, id) {
   const f = await familyOf(req, env); if (f.res) return f.res;
   const old = await env.DB.prepare(`SELECT ${PLAN_COLS} FROM plan_items WHERE id = ?`).bind(id).first();
   if (!old) return json({ error: "gone", message: "Someone removed that from the plan." }, 404);
+  if (!f.owner && old.family_id !== f.fam.id) return notYours();
   const it = readItem(await req.json().catch(() => null));
   if (it.error) return json({ error: "invalid", message: it.error }, 400);
   let pos = old.pos;
@@ -423,13 +453,15 @@ async function updatePlan(req, env, id) {
     .bind(it.day, pos, it.t, it.title, it.note, it.place, it.who, it.icon, it.opt, Date.now(), id).run();
   if (it.day !== old.day) await note(env, f, `${f.actor} moved “${it.title}” to ${DAY_NAMES[it.day]}`);
   else if (it.t !== old.t) await note(env, f, `${f.actor} changed “${it.title}” to ${it.t || "no set time"} on ${DAY_NAMES[it.day]}`);
-  return json({ item: toItem({ id, pos, ...it }) });
+  return json({ item: toItem({ id, pos, ...it, family_id: old.family_id }) });
 }
+const notYours = () => json({ error: "notyours", message: "You can change what your family added. The trip organizer looks after the rest." }, 403);
 
 async function deletePlan(req, env, id) {
   const f = await familyOf(req, env); if (f.res) return f.res;
-  const old = await env.DB.prepare("SELECT title, day FROM plan_items WHERE id = ?").bind(id).first();
+  const old = await env.DB.prepare("SELECT title, day, family_id FROM plan_items WHERE id = ?").bind(id).first();
   if (!old) return json({ ok: true });
+  if (!f.owner && old.family_id !== f.fam.id) return notYours();
   await env.DB.prepare("DELETE FROM plan_items WHERE id = ?").bind(id).run();
   await note(env, f, `${f.actor} removed “${old.title}” from ${DAY_NAMES[old.day]}`);
   return json({ ok: true });
@@ -441,8 +473,16 @@ async function orderPlan(req, env) {
   const day = parseInt(b?.day, 10);
   const ids = Array.isArray(b?.ids) ? b.ids.filter((x) => typeof x === "string").slice(0, 100) : [];
   if (!(day >= 0 && day <= 4) || !ids.length) return json({ error: "invalid", message: "Nothing to reorder." }, 400);
-  const rows = (await env.DB.prepare(`SELECT id, day, title FROM plan_items WHERE id IN (${ids.map(() => "?").join(",")})`).bind(...ids).all()).results;
+  const rows = (await env.DB.prepare(`SELECT id, day, title, family_id FROM plan_items WHERE id IN (${ids.map(() => "?").join(",")})`).bind(...ids).all()).results;
   const known = new Map(rows.map((r) => [r.id, r]));
+  if (!f.owner) {
+    // Families may move their own items anywhere, but others' items must keep their order and day.
+    if (rows.some((r) => r.day !== day && r.family_id !== f.fam.id)) return notYours();
+    const cur = (await env.DB.prepare("SELECT id, family_id FROM plan_items WHERE day = ? ORDER BY pos").bind(day).all()).results;
+    const othersNow = cur.filter((r) => r.family_id !== f.fam.id).map((r) => r.id).join();
+    const othersNew = ids.filter((x) => known.has(x) && known.get(x).family_id !== f.fam.id).join();
+    if (othersNow !== othersNew) return notYours();
+  }
   const now = Date.now(), stmts = [];
   ids.filter((x) => known.has(x)).forEach((x, i) => stmts.push(env.DB.prepare("UPDATE plan_items SET day = ?, pos = ?, updated_at = ? WHERE id = ?").bind(day, i, now, x)));
   if (stmts.length) await env.DB.batch(stmts);
@@ -451,7 +491,7 @@ async function orderPlan(req, env) {
 }
 
 /* ---------------- chat ---------------- */
-const MSG_COLS = "id, member_id, name, fam, kind, text, created_at";
+const MSG_COLS = "id, member_id, name, fam, kind, text, created_at, family_id";
 async function listChat(env, url) {
   const after = parseInt(url.searchParams.get("after") || "0", 10) || 0;
   const rows = after > 0
@@ -467,12 +507,13 @@ async function postChat(req, env) {
   const b = await req.json().catch(() => null);
   const mem = b && typeof b.member_id === "string" && await env.DB.prepare("SELECT id, name FROM members WHERE id = ? AND family_id = ?").bind(b.member_id, fam.id).first();
   if (!mem) return json({ error: "who", message: "Pick who's chatting on this phone." }, 400);
+  if (!(await allow(env, "chat:" + fam.id, 40, 10 * 60e3))) return slowDown("messages");
   const text = String(b.text ?? "").replace(/[\u0000-\u0008\u000b-\u001f]/g, "").trim().slice(0, 1000);
   if (!text) return json({ error: "empty", message: "Type a message first." }, 400);
   const now = Date.now();
   const id = await env.DB.prepare("INSERT INTO messages (family_id, member_id, name, fam, kind, text, created_at) VALUES (?, ?, ?, ?, 'text', ?, ?) RETURNING id")
     .bind(fam.id, mem.id, mem.name, fam.name, text, now).first("id");
-  return json({ message: { id, member_id: mem.id, name: mem.name, fam: fam.name, kind: "text", text, created_at: now } });
+  return json({ message: { id, member_id: mem.id, name: mem.name, fam: fam.name, kind: "text", text, created_at: now, family_id: fam.id } });
 }
 
 /* ---------------- visits: which phones have opened the invite link ---------------- */
@@ -514,6 +555,7 @@ async function putMedia(req, env, memberId, kind) {
   if (!MEDIA_KINDS.includes(kind)) return json({ error: "kind", message: "Unknown photo type." }, 400);
   const { m, res } = await memberOf(req, env, memberId);
   if (res) return res;
+  if (!(await allow(env, "up:" + m.family_id, 60, 3600e3))) return slowDown("photos");
   const buf = await req.arrayBuffer();
   if (buf.byteLength > MEDIA_MAX) return json({ error: "toobig", message: "That photo is too big." }, 413);
   if (!isJpeg(new Uint8Array(buf))) return json({ error: "notjpeg", message: "That isn't a JPEG." }, 400);
@@ -534,4 +576,15 @@ async function getMedia(req, env, memberId, kind) {
   const row = await env.DB.prepare("SELECT data, mime FROM media WHERE member_id = ? AND kind = ?").bind(memberId, kind).first();
   if (!row) return json({ error: "nomedia" }, 404);
   return new Response(new Uint8Array(row.data), { headers: { "content-type": row.mime, "cache-control": "private, no-store" } });
+}
+
+async function deleteChat(req, env, id) {
+  const token = req.headers.get("x-family-token") || "";
+  const fam = token && await env.DB.prepare("SELECT id FROM families WHERE token = ?").bind(token).first("id");
+  if (!fam) return json({ error: "forbidden", message: "Set up your family from the invite link first." }, 403);
+  const msg = await env.DB.prepare("SELECT family_id FROM messages WHERE id = ?").bind(parseInt(id, 10) || 0).first();
+  if (!msg) return json({ ok: true });
+  if (msg.family_id !== fam && fam !== await ownerFamily(env)) return json({ error: "forbidden", message: "You can remove your own family's messages." }, 403);
+  await env.DB.prepare("DELETE FROM messages WHERE id = ?").bind(parseInt(id, 10)).run();
+  return json({ ok: true });
 }
